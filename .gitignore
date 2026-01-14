@@ -3,3 +3,6 @@ objdir/
 LibXcConfig.cmake
 .gitignore
 *~
+
+build/
+helfem.chk
