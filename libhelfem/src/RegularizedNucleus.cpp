@@ -104,7 +104,7 @@ namespace helfem {
       // Find the value that is closest to the target
       arma::vec dnorm(arma::abs(norm.col(1)-target));
       arma::uword idx;
-      dnorm.min(idx);
+      idx = dnorm.index_min();
 
       double b_right=norm(idx+1,0);
       if(phi_normalization(a,b_right,N) > target)

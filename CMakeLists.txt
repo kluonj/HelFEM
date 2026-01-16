@@ -1,7 +1,7 @@
 # CMake project file for HelFEM
 cmake_minimum_required (VERSION 3.5)
 project (helfem CXX Fortran)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 # Ensure we are building out-of-source so that the tests work (issue 120)
 get_filename_component(srcdir "${CMAKE_SOURCE_DIR}" REALPATH)

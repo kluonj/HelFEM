@@ -224,7 +224,7 @@ namespace helfem {
           for(size_t io=0;io<orbval[l].n_cols;io++) {
             arma::vec odens(arma::square(orbval[l].col(io)));
             arma::uword idx;
-            odens.max(idx);
+            idx = odens.index_max();
             if(orbval[l](idx,io)<0.0) {
               orbval[l].col(io)*=-1;
 	      orbdval[l].col(io)*=-1;

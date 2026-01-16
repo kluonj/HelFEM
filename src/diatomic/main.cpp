@@ -54,8 +54,9 @@ void classify_orbitals(const arma::mat & C, const arma::ivec & mvals, const std:
 
     // Orbital symmetry is then
     arma::uword oidx;
-    double stot=ochar.max(oidx);
-
+    arma::uword oidx_u = ochar.index_max();
+    double stot = ochar.max();
+    
     // Symmetry threshold
     double thr=0.999;
 

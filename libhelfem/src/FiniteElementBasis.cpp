@@ -106,7 +106,7 @@ namespace helfem {
       }
       //dnorm.t().print("Difference norms");
       arma::uword imax;
-      dnorm.max(imax);
+      imax = dnorm.index_max();
       printf("Finite element basis set max discontinuity %e between elements %i and %i\n",dnorm(imax),(int) imax,(int) imax+1);
       fflush(stdout);
       if(dnorm(imax) > sqrt(DBL_EPSILON)) {

@@ -71,7 +71,8 @@ int main(int argc, char **argv) {
         dnorm(i)=arma::norm(pteiold[i],"fro");
 
       arma::uword maxind;
-      double dmax=dnorm.max(maxind);
+      arma::uword maxind_u = dnorm.index_max();
+      double dmax = dnorm.max();
       printf("deri[%i] max = %e\n",(int) maxind, dmax);
       
       for(int iel=0;iel<Nelem;iel++) {

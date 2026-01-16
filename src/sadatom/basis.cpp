@@ -987,14 +987,14 @@ namespace helfem {
 
         // Find the element with the maximum density
         arma::uword iel;
-        den.max(iel);
+        iel = den.index_max();
 
         // Evaluate the density in that element
         arma::vec del = electron_density(xq, iel, Prad, rsqweight);
 
         // Find the maximum value
         arma::uword imax;
-        del.max(imax);
+        imax = del.index_max();
 
         // Refine the location of the maximum in the element
         double rmax=0.0;
@@ -1070,7 +1070,7 @@ namespace helfem {
 
         // Find the smallest value
         arma::uword imax;
-        diff.min(imax);
+        imax = diff.index_min();
 
         // Refine the position.
 

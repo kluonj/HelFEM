@@ -41,7 +41,7 @@ void classify_orbitals(const arma::mat & C, const arma::ivec & lvals, const arma
 
     // Orbital symmetry is then
     arma::uword oidx;
-    ochar.max(oidx);
+    oidx = ochar.index_max();
 
     // Classification
     std::ostringstream cl;
