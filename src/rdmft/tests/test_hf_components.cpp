@@ -215,7 +215,7 @@ int main(){
 
     double E_core_r = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(H0, C_AO, nocc);
     double E_J_r = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc);
-    double E_xc_r = helfem::rdmft::muller_xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, 1.0);
+    double E_xc_r = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, 1.0);
 
     double Enucr2=0.0; if(chk.exist("Enucr")) chk.read("Enucr", Enucr2);
     double Eef2=0.0; if(chk.exist("Eefield")) chk.read("Eefield", Eef2);

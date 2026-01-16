@@ -51,6 +51,9 @@ target_link_libraries(rdmft_test_occ_gradient helfem-common helfem-rdmft legendr
 add_executable(rdmft_test_orb_gradient rdmft/tests/test_orb_gradient.cpp)
 target_link_libraries(rdmft_test_orb_gradient helfem-common helfem-rdmft legendre)
 
+add_executable(rdmft_test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
+target_link_libraries(rdmft_test_rdmft_energy_gradient helfem-common helfem-rdmft legendre)
+
 add_executable(rdmft_from_chk tools/rdmft_from_chk.cpp)
 target_link_libraries(rdmft_from_chk helfem-common helfem-rdmft legendre)
 

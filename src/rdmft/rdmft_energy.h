@@ -65,7 +65,7 @@ inline double hartree_energy(BasisType& basis,
 
 // Müller/power XC energy helper
 template <typename BasisType>
-inline double muller_xc_energy(BasisType& basis,
+inline double xc_energy(BasisType& basis,
                                const arma::mat& C_AO,
                                const arma::vec& n,
                                double power) {
@@ -81,7 +81,7 @@ inline double muller_xc_energy(BasisType& basis,
     na = n;
     nb.zeros(Norb);
   } else {
-    throw std::logic_error("muller_xc_energy: occupation vector size mismatch");
+    throw std::logic_error("xc_energy: occupation vector size mismatch");
   }
 
   const double occ_eps = 1e-14;

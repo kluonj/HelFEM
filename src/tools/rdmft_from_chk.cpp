@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 
     double Ecore = helfem::rdmft::core_energy<atomic::basis::TwoDBasis>(H0, C_AO, n);
     double EJ = helfem::rdmft::hartree_energy<atomic::basis::TwoDBasis>(basis, C_AO, n);
-    double EXC = helfem::rdmft::muller_xc_energy<atomic::basis::TwoDBasis>(basis, C_AO, n, 1.0);
+    double EXC = helfem::rdmft::xc_energy<atomic::basis::TwoDBasis>(basis, C_AO, n, 1.0);
 
     double Enucr=0.0; if(chk.exist("Enucr")) chk.read("Enucr", Enucr);
     double Eef=0.0; if(chk.exist("Eefield")) chk.read("Eefield", Eef);

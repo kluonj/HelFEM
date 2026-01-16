@@ -38,7 +38,7 @@ double total_energy(helfem::atomic::basis::TwoDBasis &basis,
   arma::mat Hcore = basis.kinetic() + basis.nuclear();
   double Ecore = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, C_AO, nocc);
   double EJ = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc);
-  double Exc = helfem::rdmft::muller_xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power);
+  double Exc = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power);
   return Ecore + EJ + Exc;
 }
 }

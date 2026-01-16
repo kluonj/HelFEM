@@ -576,7 +576,7 @@ int main(int argc, char **argv) {
       double energy(const arma::mat& C_AO, const arma::vec& n, arma::mat& gC_AO, arma::vec& gn) override {
         double E_core = helfem::rdmft::core_energy<diatomic::basis::TwoDBasis>(Hcore_, C_AO, n);
         double E_J = helfem::rdmft::hartree_energy<diatomic::basis::TwoDBasis>(basis_, C_AO, n);
-        double E_xc = helfem::rdmft::muller_xc_energy<diatomic::basis::TwoDBasis>(basis_, C_AO, n, power_);
+        double E_xc = helfem::rdmft::xc_energy<diatomic::basis::TwoDBasis>(basis_, C_AO, n, power_);
         arma::mat gC_core; helfem::rdmft::core_orbital_gradient<diatomic::basis::TwoDBasis>(Hcore_, C_AO, n, gC_core);
         arma::mat gC_J; helfem::rdmft::hartree_orbital_gradient<diatomic::basis::TwoDBasis>(basis_, C_AO, n, gC_J);
         arma::mat gC_xc; helfem::rdmft::muller_xc_orbital_gradient<diatomic::basis::TwoDBasis>(basis_, C_AO, n, power_, gC_xc);
