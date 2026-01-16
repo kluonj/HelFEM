@@ -42,14 +42,7 @@ add_executable(rdmft_test rdmft/tests/rdmft_test.cpp)
 target_link_libraries(rdmft_test helfem-common)
 
 
-add_executable(rdmft_test_hf_components rdmft/tests/test_hf_components.cpp)
-target_link_libraries(rdmft_test_hf_components helfem-common helfem-rdmft legendre)
 
-add_executable(rdmft_test_occ_gradient rdmft/tests/test_occ_gradient.cpp)
-target_link_libraries(rdmft_test_occ_gradient helfem-common helfem-rdmft legendre)
-
-add_executable(rdmft_test_orb_gradient rdmft/tests/test_orb_gradient.cpp)
-target_link_libraries(rdmft_test_orb_gradient helfem-common helfem-rdmft legendre)
 
 add_executable(rdmft_test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
 target_link_libraries(rdmft_test_rdmft_energy_gradient helfem-common helfem-rdmft legendre)

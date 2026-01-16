@@ -6,3 +6,4 @@ LibXcConfig.cmake
 
 build/
 helfem.chk
+*.log
