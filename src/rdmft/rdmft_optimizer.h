@@ -1,13 +1,47 @@
 #ifndef HELFEM_RDMFT_OPTIMIZER_H
 #define HELFEM_RDMFT_OPTIMIZER_H
 
-#include "generalized_stiefel.h"
-#include "lbfgs.h"
+#include "../general/generalized_stiefel.h"
+#include "../general/lbfgs.h"
 
 #include <armadillo>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include "rdmft_energy.h"
+#include "rdmft_gradients.h"
+#include "rdmft_energy.h"
+#include "rdmft_gradients.h"
+#include "../general/scf_helpers.h"
+
+// XC functional selector
+enum class XCFunctionalType {
+  Muller,
+  Power,
+  GU,
+  PNOF,
+  Custom
+};
+
+namespace detail {
+template <typename T>
+struct has_compute_tei {
+  template <typename U>
+  static auto test(int) -> decltype(std::declval<U&>().compute_tei(true), std::true_type());
+  template <typename>
+  static std::false_type test(...);
+  static constexpr bool value = decltype(test<T>(0))::value;
+};
+
+template <typename BasisType>
+inline typename std::enable_if<has_compute_tei<BasisType>::value, void>::type ensure_tei(BasisType& basis) {
+  basis.compute_tei(true);
+}
+
+template <typename BasisType>
+inline typename std::enable_if<!has_compute_tei<BasisType>::value, void>::type ensure_tei(BasisType&) {
+}
+} // namespace detail
 
 namespace helfem {
 namespace rdmft {
@@ -47,15 +81,7 @@ struct Result {
   double constraint = std::numeric_limits<double>::quiet_NaN();
 };
 
-inline arma::vec occ_from_theta(const arma::vec& theta) {
-  // Elementwise cos^2(theta) in [0,1]
-  return arma::square(arma::cos(theta));
-}
 
-inline arma::vec d_occ_d_theta(const arma::vec& theta) {
-  // d/dtheta cos^2(theta) = -sin(2*theta)
-  return -arma::sin(2.0 * theta);
-}
 
 inline double product_inner(const arma::mat& A, const arma::mat& B, const arma::mat& S, const arma::vec& a, const arma::vec& b) {
   return helfem::manifold::inner_product(A, B, S) + arma::dot(a, b);
@@ -65,55 +91,9 @@ inline double product_norm(const arma::mat& A, const arma::mat& S, const arma::v
   return std::sqrt(product_inner(A, A, S, a, a));
 }
 
-inline arma::vec project_capped_simplex(const arma::vec& y, double target_sum) {
-  // Projection onto {x : 0 <= x_i <= 1, sum x_i = target_sum}
-  // via bisection on Lagrange multiplier: x_i = clamp(y_i - lambda, 0, 1)
-  if (!y.is_finite()) throw std::logic_error("project_capped_simplex: non-finite input");
-  if (target_sum < 0.0) throw std::logic_error("project_capped_simplex: target_sum < 0");
-  if (target_sum > double(y.n_elem)) throw std::logic_error("project_capped_simplex: target_sum too large");
-
-  auto sum_clamped = [&](double lambda) {
-    arma::vec x = y - lambda;
-    x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-    return arma::sum(x);
-  };
-
-  // Bracket lambda.
-  double lo = y.min() - 1.0;
-  double hi = y.max();
-  // Ensure monotone bracket: sum(lo) >= target, sum(hi) <= target
-  if (sum_clamped(lo) < target_sum) {
-    lo = lo - 10.0;
-  }
-  if (sum_clamped(hi) > target_sum) {
-    hi = hi + 10.0;
-  }
-
-  for (int it = 0; it < 80; ++it) {
-    double mid = 0.5 * (lo + hi);
-    double s = sum_clamped(mid);
-    if (s > target_sum) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-
-  arma::vec x = y - 0.5 * (lo + hi);
-  x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-
-  // Small numerical correction to hit target_sum in case of rounding.
-  double diff = arma::sum(x) - target_sum;
-  if (std::abs(diff) > 1e-10) {
-    // distribute diff over non-saturated entries
-    arma::uvec free = arma::find((x > 1e-12) % (x < 1.0 - 1e-12));
-    if (!free.empty()) {
-      x(free) -= diff / double(free.n_elem);
-      x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-    }
-  }
-  return x;
-}
+using helfem::rdmft::occ_from_theta;
+using helfem::rdmft::d_occ_d_theta;
+using helfem::rdmft::project_capped_simplex;
 
 // Functional concept:
 //   double func(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn)
@@ -164,7 +144,7 @@ public:
       double c = arma::sum(n) - Nelec_;
 
       // Energy and gradients
-      double E = functional_(C, n, gC_eu, gn);
+      double E = functional_.energy(C, n, gC_eu, gn);
 
       if (!opt_.enforce_sum_projection) {
         // Augmented Lagrangian contribution
@@ -268,7 +248,7 @@ public:
 
         arma::mat gC_tmp;
         arma::vec gn_tmp;
-        double E_trial = functional_(C_trial, n_trial, gC_tmp, gn_tmp);
+        double E_trial = functional_.energy(C_trial, n_trial, gC_tmp, gn_tmp);
         if (!opt_.enforce_sum_projection) {
           E_trial += lambda * c_trial + 0.5 * mu * c_trial * c_trial;
         }

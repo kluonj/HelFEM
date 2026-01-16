@@ -38,8 +38,28 @@ target_link_libraries(gaunt_test helfem-common legendre)
 add_executable(sphtest general/sphtest.cpp)
 target_link_libraries(sphtest helfem-common legendre)
 
-add_executable(rdmft_test general/rdmft_test.cpp)
+add_executable(rdmft_test rdmft/tests/rdmft_test.cpp)
 target_link_libraries(rdmft_test helfem-common)
+
+
+add_executable(rdmft_test_hf_components rdmft/tests/test_hf_components.cpp)
+target_link_libraries(rdmft_test_hf_components helfem-common helfem-rdmft legendre)
+
+add_executable(rdmft_test_occ_gradient rdmft/tests/test_occ_gradient.cpp)
+target_link_libraries(rdmft_test_occ_gradient helfem-common helfem-rdmft legendre)
+
+add_executable(rdmft_test_orb_gradient rdmft/tests/test_orb_gradient.cpp)
+target_link_libraries(rdmft_test_orb_gradient helfem-common helfem-rdmft legendre)
+
+add_executable(rdmft_from_chk tools/rdmft_from_chk.cpp)
+target_link_libraries(rdmft_from_chk helfem-common helfem-rdmft legendre)
+
+
+add_library(helfem-rdmft
+  rdmft/rdmft_optimizer.h
+)
+target_include_directories(helfem-rdmft PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rdmft)
+target_link_libraries(helfem-rdmft PUBLIC helfem-common)
 
 add_executable(harmonic harmonic/main.cpp)
 target_link_libraries(harmonic helfem-common legendre)
