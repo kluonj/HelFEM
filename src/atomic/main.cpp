@@ -24,8 +24,6 @@
 #include "basis.h"
 #include "dftgrid.h"
 #include <cfloat>
-// RDMFT
-#include "../rdmft/rdmft_optimizer.h"
 
 using namespace helfem;
 
@@ -41,7 +39,7 @@ void classify_orbitals(const arma::mat & C, const arma::ivec & lvals, const arma
 
     // Orbital symmetry is then
     arma::uword oidx;
-    oidx = ochar.index_max();
+    ochar.max(oidx);
 
     // Classification
     std::ostringstream cl;
@@ -108,10 +106,6 @@ int main(int argc, char **argv) {
   parser.add<std::string>("save", 0, "save calculation to checkpoint", false, "helfem.chk");
   parser.add<std::string>("x_pars", 0, "file for parameters for exchange functional", false, "");
   parser.add<std::string>("c_pars", 0, "file for parameters for correlation functional", false, "");
-  // RDMFT options
-  parser.add<bool>("rdmft", 0, "run RDMFT (Muller) instead of requested method", false, false);
-  parser.add<int>("rdmft_norb", 0, "number of natural orbitals to use", false, 0);
-  parser.add<double>("rdmft_power", 0, "power for Muller/power functional (e.g. 0.5)", false, 0.5);
   parser.add<bool>("maverage", 0, "average Fock matrix over m values", false, false);
   parser.add<double>("dampfock", 0, "damping factor for off-diagonal elents", false, 0.7);
   parser.add<double>("dampthr", 0, "damping threshold", false, 0.1);
@@ -499,70 +493,6 @@ int main(int argc, char **argv) {
   // Form Hamiltonian
   arma::mat H0(T+Vnuc+Vel+Vmag+Vconf);
   chkpt.write("H0",H0);
-
-  // If requested, run RDMFT (Muller/power functional) and exit
-  if(parser.get<bool>("rdmft")) {
-    int Norb = parser.get<int>("rdmft_norb");
-    double power = parser.get<double>("rdmft_power");
-    if(Norb <= 0) Norb = std::min((int)basis.Nbf(), 10); // sensible default
-
-    helfem::rdmft::Options opt;
-    // default options already set in header; tweak if desired
-    arma::mat C_AO;
-    arma::vec n;
-    // Build initial guess
-    arma::mat S = basis.overlap();
-    arma::mat Hcore = basis.kinetic() + basis.nuclear();
-    arma::mat Sinvh = helfem::scf::form_Sinvh(S, /*chol=*/false);
-    arma::vec eps; arma::mat evec;
-    arma::mat Horth = arma::trans(Sinvh) * Hcore * Sinvh;
-    arma::eig_sym(eps, evec, Horth);
-    evec = Sinvh * evec;
-    if (evec.n_cols < Norb) throw std::logic_error("Basis too small for requested Norb");
-    C_AO = evec.cols(0, Norb - 1);
-
-    n.set_size(Norb);
-    n.fill(std::min(1.0, double(nela+nelb) / double(Norb)));
-    n = helfem::rdmft::project_capped_simplex(n, double(nela+nelb));
-
-    arma::vec theta = arma::acos(arma::sqrt(n));
-
-    // Ensure TEIs are available
-    ::detail::ensure_tei(basis);
-
-    // Local Muller adapter
-    struct MullerAdapter : public helfem::rdmft::EnergyFunctional<atomic::basis::TwoDBasis> {
-      MullerAdapter(atomic::basis::TwoDBasis& b, const arma::mat& H0, double p) : basis_(b), Hcore_(H0), power_(p) {}
-      double energy(const arma::mat& C_AO, const arma::vec& n, arma::mat& gC_AO, arma::vec& gn) override {
-        double E_core = helfem::rdmft::core_energy<atomic::basis::TwoDBasis>(Hcore_, C_AO, n);
-        double E_J = helfem::rdmft::hartree_energy<atomic::basis::TwoDBasis>(basis_, C_AO, n);
-        double E_xc = helfem::rdmft::xc_energy<atomic::basis::TwoDBasis>(basis_, C_AO, n, power_);
-        arma::mat gC_core; helfem::rdmft::core_orbital_gradient<atomic::basis::TwoDBasis>(Hcore_, C_AO, n, gC_core);
-        arma::mat gC_J; helfem::rdmft::hartree_orbital_gradient<atomic::basis::TwoDBasis>(basis_, C_AO, n, gC_J);
-        arma::mat gC_xc; helfem::rdmft::muller_xc_orbital_gradient<atomic::basis::TwoDBasis>(basis_, C_AO, n, power_, gC_xc);
-        gC_AO = gC_core + gC_J + gC_xc;
-        arma::vec gn_core; helfem::rdmft::core_occupation_gradient<atomic::basis::TwoDBasis>(Hcore_, C_AO, n, gn_core);
-        arma::vec gn_J; helfem::rdmft::hartree_occupation_gradient<atomic::basis::TwoDBasis>(basis_, C_AO, n, gn_J);
-        arma::vec gn_xc; helfem::rdmft::muller_occupation_gradient<atomic::basis::TwoDBasis>(basis_, C_AO, n, power_, gn_xc);
-        arma::uword Ne = std::max(gn_core.n_elem, std::max(gn_J.n_elem, gn_xc.n_elem));
-        gn.reset(); gn.set_size(Ne); gn.zeros();
-        if (gn_core.n_elem) gn.head(gn_core.n_elem) += gn_core;
-        if (gn_J.n_elem) gn.head(gn_J.n_elem) += gn_J;
-        if (gn_xc.n_elem) gn.head(gn_xc.n_elem) += gn_xc;
-        return E_core + E_J + E_xc;
-      }
-      atomic::basis::TwoDBasis& basis_;
-      arma::mat Hcore_;
-      double power_;
-    } adapter(basis, H0, power);
-
-    helfem::rdmft::JointOptimizer<helfem::rdmft::EnergyFunctional<atomic::basis::TwoDBasis>> optimizer(S, adapter, double(nela+nelb), opt);
-    auto res = optimizer.minimize(C_AO, theta);
-    n = helfem::rdmft::occ_from_theta(theta);
-    if (opt.enforce_sum_projection) n = helfem::rdmft::project_capped_simplex(n, double(nela+nelb));
-    printf("RDMFT finished: energy = % .12f\n", res.energy);
-    return 0;
-  }
 
   printf("One-electron matrices formed in %.6f\n",timer.get());
 

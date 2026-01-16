@@ -1052,10 +1052,13 @@ void change_dir(std::string dir, bool create) {
 }
 
 std::string tempname() {
-  // Get random file name
-  char *tmpname=tempnam("./",".chk");
-  std::string name(tmpname);
-  free(tmpname);
-
-  return name;
+  // Create a temporary file safely using mkstemp
+  char tpl[] = "./helfemXXXXXX.chk"; // mkstemp will replace XXXXXX
+  int fd = mkstemp(tpl);
+  if(fd == -1) {
+    throw std::runtime_error("Could not create temporary file via mkstemp()\n");
+  }
+  close(fd);
+  // Return the temporary filename; do not unlink here so caller can use it
+  return std::string(tpl);
 }

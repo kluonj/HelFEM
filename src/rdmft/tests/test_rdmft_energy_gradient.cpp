@@ -1,9 +1,9 @@
-#include "../general/checkpoint.h"
-#include "../rdmft/rdmft_energy.h"
-#include "../rdmft/rdmft_gradients.h"
-#include "../atomic/TwoDBasis.h"
-#include "../general/scf_helpers.h"
-#include "../general/diis.h"
+#include "general/checkpoint.h"
+#include "rdmft/rdmft_energy.h"
+#include "rdmft/rdmft_gradients.h"
+#include "atomic/TwoDBasis.h"
+#include "general/scf_helpers.h"
+#include "general/diis.h"
 #include <armadillo>
 #include <iostream>
 #include <cstdlib>
@@ -212,18 +212,56 @@ static int orb_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
 
 int main() {
   try {
+    std::cerr << "[DEBUG] Entering test main()\n";
     // If a checkpoint exists, read it; otherwise run a minimal inline HF SCF
     const string chkname = "helfem_hf.chk";
-    Checkpoint chk(chkname, false);
+    // If checkpoint exists, open for reading. Otherwise try to create it by
+    // invoking the built `atomic` executable. Construct Checkpoint only
+    // after this step to avoid exceptions from opening a missing file.
+    bool chk_exists = file_exists_local(chkname);
+    auto run_atomic_to_create_checkpoint = [&]() -> bool {
+      // Try common locations for the atomic executable from build
+      vector<string> candidates = {"./src/atomic", "./atomic", "src/atomic", "../build/src/atomic", "./build/src/atomic"};
+      for(const auto &p: candidates) {
+        ifstream f(p);
+        if(f.good()) {
+          f.close();
+          string cmd = p;
+          // run atomic with minimal arguments to produce checkpoint
+          cmd += " -Z 1 --nelem 10 --nnodes 15 --lmax 0 --mmax 0 --primbas 4 --save ";
+          cmd += chkname;
+          int rc = system(cmd.c_str());
+          if(rc == 0) return true;
+        }
+      }
+      return false;
+    };
     helfem::atomic::basis::TwoDBasis basis;
     arma::mat Ca, H0;
 
-    if(file_exists_local(chkname)) {
+    if(!chk_exists) {
+      bool created = run_atomic_to_create_checkpoint();
+      if(created) chk_exists = file_exists_local(chkname);
+    }
+
+    std::unique_ptr<Checkpoint> pchk;
+    if(chk_exists) {
+      std::cerr << "Opening existing checkpoint '" << chkname << "' for reading.\n";
+      pchk.reset(new Checkpoint(chkname, false));
+    } else {
+      std::cerr << "Creating new checkpoint '" << chkname << "' (write, trunc).\n";
+      pchk.reset(new Checkpoint(chkname, true, true));
+    }
+    Checkpoint &chk = *pchk;
+
+    if(chk_exists) {
       chk.read(basis);
       basis.compute_tei(true);
       chk.read("Ca", Ca);
       chk.read("H0", H0);
     } else {
+        // Fall back to inline minimal HF SCF (original behavior)
+        
       // Build a minimal basis and run a small HF SCF procedure (based on atomic/main.cpp)
       int primbas = 4;
       int Nnodes = 15;

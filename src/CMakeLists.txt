@@ -14,6 +14,7 @@ general/model_potential.cpp
 )
 target_link_libraries(helfem-common PUBLIC helfem)
 target_include_directories(helfem-common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../libhelfem/src/")
+target_include_directories(helfem-common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(gensap sadatom/main.cpp)
 target_link_libraries(gensap helfem-common legendre)
@@ -38,24 +39,13 @@ target_link_libraries(gaunt_test helfem-common legendre)
 add_executable(sphtest general/sphtest.cpp)
 target_link_libraries(sphtest helfem-common legendre)
 
-add_executable(rdmft_test rdmft/tests/rdmft_test.cpp)
-target_link_libraries(rdmft_test helfem-common)
-
-
-
 
 add_executable(rdmft_test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
-target_link_libraries(rdmft_test_rdmft_energy_gradient helfem-common helfem-rdmft legendre)
-
-add_executable(rdmft_from_chk tools/rdmft_from_chk.cpp)
-target_link_libraries(rdmft_from_chk helfem-common helfem-rdmft legendre)
+target_link_libraries(rdmft_test_rdmft_energy_gradient helfem-common legendre )
 
 
-add_library(helfem-rdmft
-  rdmft/rdmft_optimizer.h
-)
-target_include_directories(helfem-rdmft PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rdmft)
-target_link_libraries(helfem-rdmft PUBLIC helfem-common)
+# target_include_directories(helfem-rdmft PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rdmft)
+# target_link_libraries(helfem-rdmft PUBLIC helfem-common)
 
 add_executable(harmonic harmonic/main.cpp)
 target_link_libraries(harmonic helfem-common legendre)

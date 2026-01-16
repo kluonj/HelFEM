@@ -7,3 +7,4 @@ LibXcConfig.cmake
 build/
 helfem.chk
 *.log
+nap_rdmft/
