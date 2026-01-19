@@ -9,95 +9,27 @@
 namespace helfem {
 namespace rdmft {
 
-inline arma::vec occ_from_theta(const arma::vec& theta) {
-  return arma::square(arma::cos(theta));
-}
-
-inline arma::vec d_occ_d_theta(const arma::vec& theta) {
-  return -arma::sin(2.0 * theta);
-}
+arma::vec occ_from_theta(const arma::vec& theta);
+arma::vec d_occ_d_theta(const arma::vec& theta);
 
 // Project onto capped simplex 0<=x<=1, sum(x)=target_sum
-inline arma::vec project_capped_simplex(const arma::vec& y, double target_sum) {
-  if (!y.is_finite()) throw std::logic_error("project_capped_simplex: non-finite input");
-  if (target_sum < 0.0) throw std::logic_error("project_capped_simplex: target_sum < 0");
-  if (target_sum > double(y.n_elem)) throw std::logic_error("project_capped_simplex: target_sum too large");
-
-  auto sum_clamped = [&](double lambda) {
-    arma::vec x = y - lambda;
-    x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-    return arma::sum(x);
-  };
-
-  double lo = y.min() - 1.0;
-  double hi = y.max();
-  if (sum_clamped(lo) < target_sum) lo -= 10.0;
-  if (sum_clamped(hi) > target_sum) hi += 10.0;
-  for (int it = 0; it < 80; ++it) {
-    double mid = 0.5 * (lo + hi);
-    double s = sum_clamped(mid);
-    if (s > target_sum) lo = mid; else hi = mid;
-  }
-  arma::vec x = y - 0.5 * (lo + hi);
-  x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-
-  double diff = arma::sum(x) - target_sum;
-  if (std::abs(diff) > 1e-10) {
-    arma::uvec free = arma::find((x > 1e-12) % (x < 1.0 - 1e-12));
-    if (!free.empty()) {
-      x(free) -= diff / double(free.n_elem);
-      x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
-    }
-  }
-  return x;
-}
+arma::vec project_capped_simplex(const arma::vec& y, double target_sum, double* lambda_out = nullptr);
 
 // -----------------------------------------------------------------------------
 // Component gradient helpers (core, hartree, Muller XC)
 // -----------------------------------------------------------------------------
 
 // Core orbital gradient
-template <typename BasisType>
-inline void core_orbital_gradient(const arma::mat& Hcore,
+void core_orbital_gradient(const arma::mat& Hcore,
                                   const arma::mat& C_AO,
                                   const arma::vec& n,
-                                  arma::mat& gC_out) {
-  if(C_AO.n_cols == 0) { gC_out.reset(); return; }
-  arma::uword Norb = C_AO.n_cols;
-  arma::vec n_sum;
-  if (n.n_elem == Norb) {
-    n_sum = n;
-  } else if (n.n_elem == 2 * Norb) {
-    n_sum = n.head(Norb) + n.tail(Norb);
-  } else {
-    throw std::logic_error("core_orbital_gradient: occupation vector size mismatch");
-  }
-  gC_out = 2.0 * Hcore * C_AO * arma::diagmat(n_sum);
-}
+                                  arma::mat& gC_out);
 
 // Core occupation gradient
-template <typename BasisType>
-inline void core_occupation_gradient(const arma::mat& Hcore,
+void core_occupation_gradient(const arma::mat& Hcore,
                                     const arma::mat& C_AO,
                                     const arma::vec& n,
-                                    arma::vec& gn_out) {
-  if(C_AO.n_cols == 0) { gn_out.reset(); return; }
-  arma::uword Norb = C_AO.n_cols;
-  arma::mat H_no = C_AO.t() * Hcore * C_AO;
-  arma::uword Nocc = n.n_elem;
-  if (Nocc == Norb) {
-    gn_out.set_size(Norb);
-    for(arma::uword i=0;i<Norb;++i) gn_out(i) = H_no(i,i);
-  } else if (Nocc == 2 * Norb) {
-    gn_out.set_size(2*Norb);
-    for(arma::uword i=0;i<Norb;++i) {
-      gn_out(i) = H_no(i,i);
-      gn_out(Norb + i) = H_no(i,i);
-    }
-  } else {
-    throw std::logic_error("core_occupation_gradient: occupation vector size mismatch");
-  }
-}
+                                    arma::vec& gn_out);
 
 // Hartree orbital gradient
 template <typename BasisType>
