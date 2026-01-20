@@ -33,7 +33,7 @@ static double total_energy(helfem::atomic::basis::TwoDBasis &basis,
                            const arma::vec &nocc,
                            double power) {
   arma::mat Hcore = basis.kinetic() + basis.nuclear();
-  double Ecore = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, C_AO, nocc);
+  double Ecore = helfem::rdmft::core_energy(Hcore, C_AO, nocc);
   double EJ = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc);
   double Exc = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power);
   return Ecore + EJ + Exc;
@@ -138,7 +138,7 @@ static int hf_component_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
     for(arma::uword j=0;j<Cbocc.n_cols && j<Norb_spatial;j++) nocc(Norb_spatial + j) = 1.0;
   }
 
-  double E_core_r = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(H0, C_AO, nocc);
+  double E_core_r = helfem::rdmft::core_energy(H0, C_AO, nocc);
   double E_J_r = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc);
   double E_xc_r = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, 1.0);
   double Enucr2=0.0; if(chk.exist("Enucr")) chk.read("Enucr", Enucr2);
@@ -189,7 +189,7 @@ static int orb_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
   const double power = 1.0;
   arma::mat Hcore = basis.kinetic() + basis.nuclear();
   arma::mat gC_core, gC_h, gC_xc;
-  helfem::rdmft::core_orbital_gradient<helfem::atomic::basis::TwoDBasis>(Hcore, C_AO, nocc, gC_core);
+  helfem::rdmft::core_orbital_gradient(Hcore, C_AO, nocc, gC_core);
   helfem::rdmft::hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, gC_h);
   helfem::rdmft::muller_xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gC_xc);
   arma::mat gC = gC_core + gC_h + gC_xc;

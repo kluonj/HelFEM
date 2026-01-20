@@ -254,7 +254,7 @@ std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis
             return {Ca, Cb};
         }
         E_old = E_tot;
-        if(iter==1 || iter%10==0) std::cout << "  Iter " << iter << " E=" << E_tot << "\n";
+        if(iter==1 || iter%1==0) std::cout << "  Iter " << iter << " E=" << E_tot << "\n";
         
         helfem::scf::eig_gsym(eps, Ca, Fa, Sinvh);
         if (Nb > 0) helfem::scf::eig_gsym(eps, Cb, Fb, Sinvh);
