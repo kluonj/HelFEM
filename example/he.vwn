@@ -1,0 +1,1 @@
+./src/atomic --Z=2 --nelem=10 --nnodes=15 --lmax=0 --mmax=0 --primbas=4 --nela=1 --nelb=1 --Rmax=20.0 --method=lda_x-lda_c_vwn

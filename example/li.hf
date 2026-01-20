@@ -1,0 +1,1 @@
+./src/atomic --Z=3 --nelem=3 --nnodes=15 --lmax=0 --mmax=0 --primbas=4 --nela=2 --nelb=1 --Rmax=40.0

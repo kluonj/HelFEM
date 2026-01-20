@@ -2,6 +2,7 @@
 #include "general/scf_helpers.h"
 #include "rdmft_gradients.h"
 #include <iostream>
+#include <iomanip>
 #include <algorithm> // For std::max, std::min
 #include <cmath>     // For std::abs, std::isnan
 
@@ -90,7 +91,28 @@ void RDMFT_Solver::optimize_occupations(arma::mat& C, arma::vec& n, double targe
     arma::mat gC; arma::vec gn;
     double E = functional_->energy(C, n, gC, gn);
     
+    if (verbose_) {
+        std::cout << "\n  --- Occupation Optimization ---\n";
+        std::cout << "  Iter |      Energy      |   Grad Norm  | Occupations (first 8) ... \n";
+        std::cout << "-------|------------------|--------------|---------------------------\n";
+    }
+
     for (int iter = 0; iter < max_occ_iter_; ++iter) {
+        
+        if (verbose_) {
+           std::cout << "  " << std::setw(4) << iter << " | " 
+                     << std::scientific << std::setprecision(8) << std::setw(16) << E << " | " 
+                     << std::scientific << std::setprecision(4) << std::setw(12) << arma::norm(gn, "inf") << " | ";
+           
+           // Print first few occ
+           int n_print = std::min((int)n.n_elem, 8); 
+           std::cout << std::fixed << std::setprecision(6);
+           for(int k=0; k<n_print; ++k) std::cout << n(k) << " ";
+           if(n.n_elem > (arma::uword)n_print) std::cout << "...";
+           std::cout << "\n";
+           std::cout.unsetf(std::ios::floatfield); // Reset formatting
+        }
+
         double step = 1.0; 
         arma::vec n_new = n - step * gn;
         
