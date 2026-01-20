@@ -3,3 +3,4 @@ objdir/
 LibXcConfig.cmake
 .gitignore
 *~
+build/
