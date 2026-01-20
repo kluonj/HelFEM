@@ -43,8 +43,8 @@ add_executable(sphtest general/sphtest.cpp)
 target_link_libraries(sphtest helfem-common legendre)
 
 
-add_executable(rdmft_test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
-target_link_libraries(rdmft_test_rdmft_energy_gradient helfem-common legendre )
+add_executable(test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
+target_link_libraries(test_rdmft_energy_gradient helfem-common legendre )
 
 
 # target_include_directories(helfem-rdmft PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rdmft)
@@ -80,8 +80,8 @@ target_link_libraries(diatomic_dline helfem-common legendre)
 add_executable(diatomic_dgrid diatomic/density_grid.cpp)
 target_link_libraries(diatomic_dgrid helfem-common legendre)
 
-add_executable(rdmft_test_solver rdmft/tests/test_solver.cpp)
-target_link_libraries(rdmft_test_solver helfem-common legendre)
+add_executable(test_solver rdmft/tests/test_solver.cpp)
+target_link_libraries(test_solver helfem-common legendre)
 
 # Install libraries and main executables
 install (TARGETS atomic diatomic diatomic_cbasis diatomic_cpl gensap DESTINATION bin OPTIONAL)

@@ -4,6 +4,7 @@
 #include "general/checkpoint.h"
 #include "atomic/basis.h"
 #include "atomic/dftgrid.h"
+#include "general/model_potential.h"
 #include "general/scf_helpers.h"
 #include "rdmft/rdmft_solver.h"
 #include "rdmft/rdmft_energy.h"
@@ -13,49 +14,7 @@ using namespace std;
 using namespace helfem;
 using namespace helfem::rdmft;
 
-// Restricted Atomic Functional (Single Channel wrapper)
-class AtomicFunctional : public EnergyFunctional<void> {
-public:
-    helfem::atomic::basis::TwoDBasis& basis;
-    arma::mat Hcore;
-    double accumulated_energy;
-
-    AtomicFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0) 
-        : basis(b), Hcore(H0), accumulated_energy(0.0) {}
-
-    double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
-        double power = 1.0;
-        int Norb = C.n_cols;
-        arma::vec nocc(2 * Norb);
-        for(int i=0; i<Norb; ++i) {
-            nocc(i) = n(i);          // Alpha
-            nocc(Norb + i) = n(i);   // Beta
-        }
-        
-        double E_core = helfem::rdmft::core_energy(Hcore, C, nocc);
-        double E_J = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C, nocc);
-        double E_xc = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C, nocc, power);
-        
-        double Etot = E_core + E_J + E_xc;
-        accumulated_energy = Etot;
-        
-        arma::mat gC_core, gC_J, gC_xc;
-        helfem::rdmft::core_orbital_gradient(Hcore, C, nocc, gC_core);
-        helfem::rdmft::hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C, nocc, gC_J);
-        helfem::rdmft::muller_xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C, nocc, power, gC_xc);
-        
-        gC = gC_core + gC_J + gC_xc;
-        
-        arma::vec gn_full;
-        helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C, nocc, power, gn_full);
-        
-        gn.set_size(Norb);
-        for(int i=0; i<Norb; ++i) {
-            gn(i) = gn_full(i) + gn_full(Norb+i);
-        }
-        return Etot;
-    }
-};
+// Simplified test: only UnrestrictedAtomicFunctional and UHF workflow retained
 
 // Unrestricted Atomic Functional
 class UnrestrictedAtomicFunctional : public EnergyFunctional<void> {
@@ -164,9 +123,14 @@ std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis
     
     arma::mat Sinvh = helfem::scf::form_Sinvh(S, false);
     
-    // Core Guess
+    // Guess using Thomas-Fermi atom (like atomic/main.cpp iguess==3)
     arma::vec eps; arma::mat C;
-    helfem::scf::eig_gsym(eps, C, H0, Sinvh);
+    modelpotential::ModelPotential * model = new modelpotential::TFAtom(basis.get_Z());
+    arma::mat Vel = arma::mat(basis.Nbf(), basis.Nbf(), arma::fill::zeros);
+    arma::mat Vmag = arma::mat(basis.Nbf(), basis.Nbf(), arma::fill::zeros);
+    arma::mat Hguess = basis.kinetic() + Vel + Vmag + basis.model_potential(model);
+    delete model;
+    helfem::scf::eig_gsym(eps, C, Hguess, Sinvh);
     arma::mat Ca = C;
     arma::mat Cb = C;
     
