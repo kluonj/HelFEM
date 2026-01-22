@@ -64,6 +64,7 @@ private:
     // If n_alpha_orb > 0, treats as two-channel. If 0 or -1, treats as one channel.
     void optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb, double& mu_a, double& mu_b, double rho);
     void optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb);
+    double perform_linesearch(const arma::mat& C, const arma::vec& n, const arma::mat& X, const arma::mat& dir, double E_initial, double dphi_0, int n_alpha_orb, arma::mat& C_new, arma::mat& X_new);
 
     // Helper: Orthogonalize C: X = S^{1/2} C
     arma::mat to_orthogonal_basis(const arma::mat& C);

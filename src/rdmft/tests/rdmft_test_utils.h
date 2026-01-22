@@ -1,3 +1,6 @@
+#ifndef RDMFT_TEST_UTILS_H
+#define RDMFT_TEST_UTILS_H
+
 #include <iostream>
 #include <armadillo>
 #include "general/constants.h"
@@ -10,11 +13,8 @@
 #include "rdmft/rdmft_energy.h"
 #include "rdmft/rdmft_gradients.h"
 
-using namespace std;
 using namespace helfem;
 using namespace helfem::rdmft;
-
-// Simplified test: only UnrestrictedAtomicFunctional and UHF workflow retained
 
 // Unrestricted Atomic Functional
 class UnrestrictedAtomicFunctional : public EnergyFunctional<void> {
@@ -30,10 +30,6 @@ public:
     double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
         double power = 1.0;
         
-        // Split C and n
-        // C has (n_alpha_orb + n_beta_orb) columns.
-        // We assume n corresponds similarly.
-        
         int Na = n_alpha_orb;
         int Nb = C.n_cols - Na;
         
@@ -45,18 +41,14 @@ public:
         arma::vec na = n.head(Na);
         arma::vec nb = n.tail(Nb);
         
-        // Form Density Matrices
         arma::mat Pa = Ca * arma::diagmat(na) * Ca.t();
         arma::mat Pb = Cb * arma::diagmat(nb) * Cb.t();
         arma::mat Ptot = Pa + Pb;
         
-        // Use helper functions for energy components and gradients (reuse implementations)
-        // Compute per-channel energies via helpers and sum.
         double E_core_a = helfem::rdmft::core_energy(Hcore, Ca, na);
         double E_core_b = helfem::rdmft::core_energy(Hcore, Cb, nb);
         double E_core = E_core_a + E_core_b;
 
-        // Hartree must be computed from total density Ptot to include cross terms
         arma::mat J_total = basis.coulomb(Ptot);
         double E_J = 0.5 * arma::trace(Ptot * J_total);
 
@@ -66,14 +58,12 @@ public:
 
         accumulated_energy = E_core + E_J + E_xc;
 
-        // Orbital gradients via helpers (they operate on per-channel C and occupations)
         arma::mat gCa_core, gCa_J, gCa_xc;
         arma::mat gCb_core, gCb_J, gCb_xc;
 
         helfem::rdmft::core_orbital_gradient(Hcore, Ca, na, gCa_core);
         helfem::rdmft::core_orbital_gradient(Hcore, Cb, nb, gCb_core);
 
-        // Hartree orbital gradients computed from total coulomb potential J_total
         gCa_J = 2.0 * J_total * Ca * arma::diagmat(na);
         gCb_J = 2.0 * J_total * Cb * arma::diagmat(nb);
 
@@ -84,14 +74,10 @@ public:
         gC.cols(0, Na-1) = gCa_core + gCa_J + gCa_xc;
         gC.cols(Na, Na+Nb-1) = gCb_core + gCb_J + gCb_xc;
 
-        // Occupation gradients via helper (per-channel)
         arma::vec gna_full, gnb_full;
         helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_full);
         helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_full);
 
-        // The helper outputs H + J(P_channel) + dExc/dn for that channel where J(P_channel)
-        // is constructed from Pa (or Pb). We need H + J_total + dExc/dn where J_total is built
-        // from Ptot = Pa + Pb. So correct by adding (J_total_diag - J_channel_diag).
         arma::mat J_pa = basis.coulomb(Pa);
         arma::mat J_pb = basis.coulomb(Pb);
         arma::mat J_pa_no = Ca.t() * J_pa * Ca;
@@ -110,9 +96,36 @@ public:
     }
 };
 
+// Compute HF energy for given orbitals and occupations
+// NOTE: This mirrors the energy expression used in perform_dft_scf for HF.
+inline double compute_hf_energy(helfem::atomic::basis::TwoDBasis& basis,
+                                const arma::mat& H0,
+                                const arma::mat& Ca,
+                                const arma::mat& Cb,
+                                const arma::vec& na,
+                                const arma::vec& nb) {
+    arma::mat Pa = Ca * arma::diagmat(na) * Ca.t();
+    arma::mat Pb = Cb * arma::diagmat(nb) * Cb.t();
+    arma::mat Ptot = Pa + Pb;
+
+    arma::mat J = basis.coulomb(Ptot);
+    arma::mat Ka = basis.exchange(Pa);
+    arma::mat Kb = basis.exchange(Pb);
+
+    double E_core = arma::trace(Ptot * H0);
+    double E_J = 0.5 * arma::trace(Ptot * J);
+    double E_Exx = 0.5 * (arma::trace(Pa * Ka) + arma::trace(Pb * Kb));
+
+    return E_core + E_J + E_Exx;
+}
+
 // Helper to run SCF (HF or DFT) to get converged orbitals
 // Returns pair {Ca, Cb}
-std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis& basis, 
+/* 
+NOTE: The implementation of this is identical to previous test_solver.cpp.
+Keeping it inline here for simplicity. 
+*/
+inline std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis& basis, 
                                                 const arma::mat& S, 
                                                 const arma::mat& H0, 
                                                 int Na, int Nb,
@@ -229,86 +242,4 @@ std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis
     return {Ca, Cb};
 }
 
-void run_test_unrestricted(helfem::atomic::basis::TwoDBasis& basis, const arma::mat& S, const arma::mat& H0) {
-    std::cout << "\n--- Unrestricted Calculation (DFT Orbitals, Uniform Occ Optimization) ---\n";
-    
-    // 1. Run DFT (VWN) SCF to get guess orbitals for He (Na=1, Nb=1)
-    int Na = 1; int Nb = 1;
-    
-    // Using x_func=1 (Slater Exchange) and c_func=7 (VWN Correlation LDA)
-    // LibXC IDs: XC_LDA_X=1, XC_LDA_C_VWN=7
-    int x_func_id = 1; 
-    int c_func_id = 7;
-    
-    auto orbits = perform_dft_scf(basis, S, H0, Na, Nb, x_func_id, c_func_id);
-    arma::mat Ca_hf = orbits.first;
-    arma::mat Cb_hf = orbits.second;
-    
-    int Na_orb = Ca_hf.n_cols; 
-    int Nb_orb = Cb_hf.n_cols;
-    
-    auto func = std::make_shared<UnrestrictedAtomicFunctional>(basis, H0, Na_orb);
-    RDMFT_Solver solver(func, S);
-    
-    // Guess: DFT Orbitals
-    arma::mat C_tot(Ca_hf.n_rows, Na_orb + Nb_orb);
-    C_tot.cols(0, Na_orb - 1) = Ca_hf;
-    C_tot.cols(Na_orb, Na_orb + Nb_orb - 1) = Cb_hf;
-    
-    // Uniform occupations (fractional)
-    double target_Na = (double)Na;
-    double target_Nb = (double)Nb;
-    
-    arma::vec na(Na_orb); na.fill(target_Na / double(Na_orb));
-    arma::vec nb(Nb_orb); nb.fill(target_Nb / double(Nb_orb));
-    
-    arma::vec n_tot(Na_orb + Nb_orb);
-    n_tot.head(Na_orb) = na;
-    n_tot.tail(Nb_orb) = nb;
-    
-    std::cout << "Initial Occupations (Uniform): " << n_tot.head(5).t();
-    
-    solver.set_verbose(true);
-    solver.set_optimize_orbitals(false); // FIXED ORBITALS
-    
-    // Solve with dual channel
-    solver.solve(C_tot, n_tot, target_Na, target_Nb, Na_orb);
-    
-    std::cout << "Unrestricted Final Energy: " << func->accumulated_energy << "\n";
-    
-    // Print first few occupations
-    int n_print = std::min(5, Na_orb);
-    std::cout << "Occupations Alpha (first " << n_print << "): " << n_tot.subvec(0, n_print-1).t();
-    std::cout << "Occupations Beta  (first " << n_print << "): " << n_tot.subvec(Na_orb, Na_orb+n_print-1).t();
-}
-
-int main() {
-    std::cout << "Testing RDMFT Solver Suite\n";
-    
-    // Setup Basis
-    int Z = 2; // He
-    int primbas = 4; int Nnodes = 15; int Nelem = 10; double Rmax = 20.0;
-    
-    auto poly = std::shared_ptr<const helfem::polynomial_basis::PolynomialBasis>(helfem::polynomial_basis::get_basis(primbas, Nnodes));
-    arma::vec bval = helfem::atomic::basis::form_grid((helfem::modelpotential::nuclear_model_t)0, 0.0, Nelem, Rmax, 
-                                                      4, 2.0, Nelem, 4, 2.0, 
-                                                      2, 0, 0, 0.0, false, 0.0);
-    
-    arma::ivec lvals(1); lvals(0) = 0;
-    arma::ivec mvals(1); mvals(0) = 0;
-    
-    helfem::atomic::basis::TwoDBasis basis(Z, (helfem::modelpotential::nuclear_model_t)0, 0.0, 
-                                           poly, false, 5*poly->get_nbf(), bval, 
-                                           poly->get_nprim()-1, lvals, mvals, 0, 0, 0.0);
-                                           
-    basis.compute_tei(true);
-    arma::mat S = basis.overlap();
-    arma::mat T = basis.kinetic();
-    arma::mat Vnuc = basis.nuclear();
-    arma::mat H0 = T + Vnuc;
-
-    // run_test_restricted(basis, S, H0); // Disable for now to focus on UHF workflow
-    run_test_unrestricted(basis, S, H0);
-    
-    return 0;
-}
+#endif // RDMFT_TEST_UTILS_H

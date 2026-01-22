@@ -267,7 +267,8 @@ static int occ_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
 static int orb_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis &basis, const arma::mat &Ca) {
   basis.compute_tei(true);
   arma::uword Norb = std::min<arma::uword>(2, Ca.n_cols);
-  if(Norb==0) { cerr << "No orbitals for orbital gradient test." << endl; return 2; }
+  if(Norb==0) 
+  { cerr << "No orbitals for orbital gradient test." << endl; return 2; }
   arma::mat C_AO = Ca.cols(0, Norb-1);
   arma::vec nocc(2*Norb); nocc.fill(0.8);
   const double power = 1.0;
@@ -281,7 +282,9 @@ static int orb_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
   arma::uword max_rows = std::min<arma::uword>(5, C_AO.n_rows);
   arma::uword max_cols = std::min<arma::uword>(2, C_AO.n_cols);
   double max_diff = 0.0;
-  for(arma::uword i=0;i<max_rows;++i) for(arma::uword j=0;j<max_cols;++j) {
+  for(arma::uword i=0;i<max_rows;++i) 
+    for(arma::uword j=0;j<max_cols;++j) 
+  {
     arma::mat Cp = C_AO; arma::mat Cm = C_AO; Cp(i,j) += eps; Cm(i,j) -= eps;
     double Ep = total_energy(basis, Cp, nocc, power);
     double Em = total_energy(basis, Cm, nocc, power);
@@ -312,7 +315,7 @@ int main() {
           f.close();
           string cmd = p;
           // run atomic with minimal arguments to produce checkpoint
-          cmd += " -Z 1 --nelem 10 --nnodes 15 --lmax 0 --mmax 0 --primbas 4 --save ";
+          cmd += " --Z 2 --nelem 5 --nnodes 15 --lmax 0 --mmax 0 --primbas 4 --save ";
           cmd += chkname;
           int rc = system(cmd.c_str());
           if(rc == 0) return true;
@@ -351,7 +354,7 @@ int main() {
       int Nnodes = 15;
       int Nelem = 20;
       int lmax = 0, mmax = 0;
-      double Rmax = 20.0;
+      double Rmax = 40.0;
 
       auto poly = std::shared_ptr<const helfem::polynomial_basis::PolynomialBasis>(helfem::polynomial_basis::get_basis(primbas, Nnodes));
       arma::vec bval = helfem::atomic::basis::form_grid((helfem::modelpotential::nuclear_model_t)0, 0.0, Nelem, Rmax, 4, 2.0, Nelem, 4, 2.0, 2, 0, 0, 0.0, false, 0.0);
@@ -380,8 +383,8 @@ int main() {
 
       // SCF loop: minimal restricted HF
       basis.compute_tei(true);
-      int maxit = 30;
-      double convthr = 1e-7;
+      int maxit = 50;
+      double convthr = 1e-8;
       int nela = 1, nelb = 1;
       arma::mat Caocc = Ca.cols(0, std::min((arma::uword)1, Ca.n_cols)-1);
       arma::mat Cbocc = Caocc;

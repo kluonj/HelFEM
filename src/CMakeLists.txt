@@ -80,8 +80,11 @@ target_link_libraries(diatomic_dline helfem-common legendre)
 add_executable(diatomic_dgrid diatomic/density_grid.cpp)
 target_link_libraries(diatomic_dgrid helfem-common legendre)
 
-add_executable(test_solver rdmft/tests/test_solver.cpp)
-target_link_libraries(test_solver helfem-common legendre)
+add_executable(test_solver_occ rdmft/tests/test_solver_occ.cpp)
+target_link_libraries(test_solver_occ helfem-common legendre)
+
+add_executable(test_solver_orb rdmft/tests/test_solver_orb.cpp)
+target_link_libraries(test_solver_orb helfem-common legendre)
 
 # Install libraries and main executables
 install (TARGETS atomic diatomic diatomic_cbasis diatomic_cpl gensap DESTINATION bin OPTIONAL)
