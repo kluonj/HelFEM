@@ -317,7 +317,7 @@ int main() {
           f.close();
           string cmd = p;
           // run atomic with minimal arguments to produce checkpoint
-          cmd += " --Z 2 --nelem 5 --nnodes 15 --lmax 0 --mmax 0 --primbas 4 --save ";
+          cmd += " --Z 2 --nelem 4 --nnodes 6--lmax 0 --mmax 0 --primbas 4 --save ";
           cmd += chkname;
           int rc = system(cmd.c_str());
           if(rc == 0) return true;

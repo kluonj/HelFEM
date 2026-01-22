@@ -93,16 +93,18 @@ void RDMFT_Solver::optimize_occupations(arma::mat& C, arma::vec& n, double targe
     
     if (verbose_) {
         std::cout << "\n  --- Occupation Optimization ---\n";
-        std::cout << "  Iter |      Energy      |   Grad Norm  | Occupations (first 8) ... \n";
-        std::cout << "-------|------------------|--------------|---------------------------\n";
+        std::cout << "  Iter |      Energy      |   Grad Norm  |     mu     |   rho   | Occupations (first 8) ... \n";
+        std::cout << "-------|------------------|--------------|------------|---------|---------------------------\n";
     }
 
-    for (int iter = 0; iter < max_occ_iter_; ++iter) {
+    for (int iter = 1; iter < max_occ_iter_; ++iter) {
         
         if (verbose_) {
            std::cout << "  " << std::setw(4) << iter << " | " 
                      << std::scientific << std::setprecision(8) << std::setw(16) << E << " | " 
-                     << std::scientific << std::setprecision(4) << std::setw(12) << arma::norm(gn, "inf") << " | ";
+                     << std::scientific << std::setprecision(4) << std::setw(12) << arma::norm(gn, "inf") << " | "
+                     << std::scientific << std::setprecision(4) << std::setw(10) << mu_a << " | "
+                     << std::scientific << std::setprecision(4) << std::setw(7) << rho << " | ";
            
            // Print first few occ
            int n_print = std::min((int)n.n_elem, 8); 
@@ -216,10 +218,22 @@ void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb
     arma::mat grad = calc_riem_grad(X, gX_Euc);
     arma::mat dir = -grad;
     
-    for (int iter = 0; iter < max_orb_iter_; ++iter) {
+    if (verbose_) {
+        std::cout << "\n  --- Orbital Optimization ---\n";
+        std::cout << "  Iter |      Energy      | Riem Grad Norm |  Step Size \n";
+        std::cout << "-------|------------------|----------------|------------\n";
+    }
+
+    for (int iter = 1; iter < max_orb_iter_; ++iter) {
         
         double grad_norm = arma::norm(grad, "fro");
         if (grad_norm < orb_tol_) break;
+
+        if (verbose_) {
+             std::cout << "  " << std::setw(4) << iter << " | "
+                       << std::scientific << std::setprecision(8) << std::setw(16) << E << " | "
+                       << std::scientific << std::setprecision(4) << std::setw(14) << grad_norm << " | " << std::flush;
+        }
         
         arma::mat C_new, X_new;
         double dphi_0 = arma::dot(grad, dir);
@@ -230,6 +244,10 @@ void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb
 
         double step = perform_linesearch(C, n, X, dir, E, dphi_0, n_alpha_orb, C_new, X_new);
         
+        if (verbose_) {
+             std::cout << std::scientific << std::setprecision(4) << std::setw(10) << step << "\n";
+        }
+
         if (step == 0.0) {
             if (verbose_) std::cout << "  [Orb] Line search failed or small step.\n";
             // Reduce trust region or restart? For now break.
@@ -280,7 +298,7 @@ double RDMFT_Solver::perform_linesearch(const arma::mat& C, const arma::vec& n, 
     double alpha = 1.0;
     double rho = 0.5;
     double c1 = 1e-4;
-    int max_ls = 20;
+    int max_ls = 10;
 
     for(int i=0; i<max_ls; ++i) {
          // Retract X -> X_new
