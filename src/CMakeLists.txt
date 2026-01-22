@@ -12,7 +12,6 @@ general/dftfuncs.cpp diatomic/basis.cpp diatomic/quadrature.cpp
 diatomic/dftgrid.cpp diatomic/twodquadrature.cpp
 general/model_potential.cpp
 rdmft/rdmft_solver.cpp
-rdmft/rdmft_optimizer.cpp
 rdmft/rdmft_energy.cpp
 rdmft/rdmft_gradients.cpp
 )
