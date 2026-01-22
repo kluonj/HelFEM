@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <string>
+#include <iomanip>
 #include "rdmft_test_utils.h"
 
 // Optimize occupations only (fixed orbitals)
@@ -18,13 +19,13 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
         return n;
     };
 
-    // 1. Run DFT (VWN) SCF to get fixed orbitals for occ-only optimization
-    std::cout << "\n>>> Running DFT (VWN) SCF to get fixed orbitals...\n";
-    int x_func_id = 1; 
-    int c_func_id = 7;
-    auto orbits_dft = perform_dft_scf(basis, S, H0, Na, Nb, x_func_id, c_func_id);
-    arma::mat Ca_dft = orbits_dft.first;
-    arma::mat Cb_dft = orbits_dft.second;
+    // 1. Run HF SCF to get fixed orbitals for occ-only optimization
+    std::cout << "\n>>> Running HF SCF to get fixed orbitals...\n";
+    int x_func_id = 0; 
+    int c_func_id = 0;
+    auto orbits_hf = perform_scf(basis, S, H0, Na, Nb, x_func_id, c_func_id);
+    arma::mat Ca_hf = orbits_hf.first;
+    arma::mat Cb_hf = orbits_hf.second;
 
     auto run_occ_optimization = [&](const arma::mat& Ca, const arma::mat& Cb, const std::string& label) {
         int Na_orb = Ca.n_cols;
@@ -51,14 +52,18 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
 
         solver.solve(C_tot, n_tot, target_Na, target_Nb, Na_orb);
 
+        // Print energy with more digits (temporary formatting)
+        std::cout << std::setprecision(12) << std::scientific;
         std::cout << "[" << label << "] Final Energy (p=1.0): " << func->accumulated_energy << "\n";
+        std::cout << std::defaultfloat << std::setprecision(6);
+
         int n_print = std::min(5, Na_orb);
         std::cout << "[" << label << "] Occupations Alpha (first " << n_print << "): " << n_tot.subvec(0, n_print-1).t();
         std::cout << "[" << label << "] Occupations Beta  (first " << n_print << "): " << n_tot.subvec(Na_orb, Na_orb+n_print-1).t();
     };
 
-    // 2. Occupation optimization with DFT orbitals
-    run_occ_optimization(Ca_dft, Cb_dft, "DFT orbitals");
+    // 2. Occupation optimization with HF orbitals
+    run_occ_optimization(Ca_hf, Cb_hf, "HF orbitals");
 }
 
 int main() {

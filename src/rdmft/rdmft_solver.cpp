@@ -192,33 +192,28 @@ void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb
     double E = functional_->energy(C, n, gC, gn_eval);
     
     // Gradient w.r.t X:  gX = S^{-1/2} gC
-    arma::mat gX = S_inv_sqrt_ * gC; 
+    arma::mat gX_Euc = S_inv_sqrt_ * gC; 
     
-    // Riemannian gradient
-    // If Two channels: We have two independent manifolds.
-    // St(N_a, N_bf) x St(N_b, N_bf)
-    // The metric is block diagonal.
-    // grad_A = gX_A - X_A gX_A^T X_A
-    // grad_B = gX_B - X_B gX_B^T X_B
+    // Helper to calc Riemannian grad from gX_Euc and X
+    auto calc_riem_grad = [&](const arma::mat& X_in, const arma::mat& gX_in) {
+         arma::mat G(X_in.n_rows, X_in.n_cols);
+         if (n_alpha_orb > 0 && X_in.n_cols > (arma::uword)n_alpha_orb) {
+             arma::mat Xa = X_in.cols(0, n_alpha_orb - 1);
+             arma::mat gXa = gX_in.cols(0, n_alpha_orb - 1);
+             arma::mat ga = gXa - Xa * gXa.t() * Xa;
+             G.cols(0, n_alpha_orb - 1) = ga;
+             
+             arma::mat Xb = X_in.cols(n_alpha_orb, X_in.n_cols - 1);
+             arma::mat gXb = gX_in.cols(n_alpha_orb, X_in.n_cols - 1);
+             arma::mat gb = gXb - Xb * gXb.t() * Xb;
+             G.cols(n_alpha_orb, X_in.n_cols - 1) = gb;
+         } else {
+             G = gX_in - X_in * gX_in.t() * X_in;
+         }
+         return G;
+    };
     
-    arma::mat grad(gX.n_rows, gX.n_cols);
-    
-    if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
-         // Split
-         arma::mat Xa = X.cols(0, n_alpha_orb - 1);
-         arma::mat gXa = gX.cols(0, n_alpha_orb - 1);
-         arma::mat grad_a = gXa - Xa * gXa.t() * Xa;
-         
-         arma::mat Xb = X.cols(n_alpha_orb, X.n_cols - 1);
-         arma::mat gXb = gX.cols(n_alpha_orb, X.n_cols - 1);
-         arma::mat grad_b = gXb - Xb * gXb.t() * Xb;
-         
-         grad.cols(0, n_alpha_orb - 1) = grad_a;
-         grad.cols(n_alpha_orb, X.n_cols - 1) = grad_b;
-    } else {
-         grad = gX - X * gX.t() * X;
-    }
-
+    arma::mat grad = calc_riem_grad(X, gX_Euc);
     arma::mat dir = -grad;
     
     for (int iter = 0; iter < max_orb_iter_; ++iter) {
@@ -227,204 +222,115 @@ void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb
         if (grad_norm < orb_tol_) break;
         
         arma::mat C_new, X_new;
-        // For steepest descent dir = -grad, dphi_0 = - ||grad||^2. 
-        // If CG, dphi_0 = dot(grad, dir).
         double dphi_0 = arma::dot(grad, dir);
+        if (dphi_0 >= 0) {
+             dir = -grad;
+             dphi_0 = -arma::dot(grad, grad);
+        }
 
         double step = perform_linesearch(C, n, X, dir, E, dphi_0, n_alpha_orb, C_new, X_new);
         
         if (step == 0.0) {
             if (verbose_) std::cout << "  [Orb] Line search failed or small step.\n";
+            // Reduce trust region or restart? For now break.
             break; 
+        }
+        
+        // Compute new gradient
+        arma::mat gC_new; arma::vec gn_new;
+        E = functional_->energy(C_new, n, gC_new, gn_new);
+        arma::mat gX_new_Euc = S_inv_sqrt_ * gC_new;
+        arma::mat grad_new = calc_riem_grad(X_new, gX_new_Euc);
+        
+        // Polak-Ribiere CG
+        // Transport grad to new point
+        arma::mat Xt_g = X_new.t() * grad;
+        arma::mat sym_Xt_g = 0.5 * (Xt_g + Xt_g.t());
+        arma::mat grad_trans = grad - X_new * sym_Xt_g;
+        
+        double num = arma::dot(grad_new, grad_new - grad_trans);
+        double den = arma::dot(grad, grad);
+        double beta = std::max(0.0, num / den);
+        
+        // Transport dir to new point
+        arma::mat Xt_d = X_new.t() * dir;
+        arma::mat sym_Xt_d = 0.5 * (Xt_d + Xt_d.t());
+        arma::mat dir_trans = dir - X_new * sym_Xt_d;
+        
+        arma::mat dir_new = -grad_new + beta * dir_trans;
+        
+        // Restart if not descent
+        if (arma::dot(grad_new, dir_new) >= 0) {
+            dir_new = -grad_new;
         }
         
         X = X_new;
         C = C_new;
-        
-        arma::mat gC_new; arma::vec gn_new;
-        E = functional_->energy(C, n, gC_new, gn_new);
-        arma::mat gX_new = S_inv_sqrt_ * gC_new;
-        
-        // Compute new gradient per block
-        arma::mat grad_new(gX.n_rows, gX.n_cols);
-        
-        if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
-             arma::mat Xa = X.cols(0, n_alpha_orb - 1);
-             arma::mat gXa = gX_new.cols(0, n_alpha_orb - 1);
-             arma::mat grad_a = gXa - Xa * gXa.t() * Xa;
-             
-             arma::mat Xb = X.cols(n_alpha_orb, X.n_cols - 1);
-             arma::mat gXb = gX_new.cols(n_alpha_orb, X.n_cols - 1);
-             arma::mat grad_b = gXb - Xb * gXb.t() * Xb;
-             
-             grad_new.cols(0, n_alpha_orb - 1) = grad_a;
-             grad_new.cols(n_alpha_orb, X.n_cols - 1) = grad_b;
-        } else {
-             grad_new = gX_new - X * gX_new.t() * X;
-        }
-        
-        // Steepest Descent reset for simplicity
-        dir = -grad_new;
         grad = grad_new;
+        dir = dir_new;
     }
     
     if (verbose_) std::cout << "  [Orb] Energy after optimize: " << E << "\n";
 }
 
 double RDMFT_Solver::perform_linesearch(const arma::mat& C, const arma::vec& n, const arma::mat& X, const arma::mat& dir, double E_initial, double dphi_0, int n_alpha_orb, arma::mat& C_new, arma::mat& X_new) {
-    // Strong Wolfe Line Search with Zoom (Nocedal & Wright, Algorithm 3.5 & 3.6)
+    // Backtracking Armijo Line Search
+    // Robust for Steepest Descent
     
-    // Config
+    double alpha = 1.0;
+    double rho = 0.5;
     double c1 = 1e-4;
-    double c2 = 0.9;
-    double alpha_max = 2.0;
-    double alpha_curr = 1.0; 
-    double alpha_prev = 0.0;
-    
-    double phi_0 = E_initial;
-    double phi_prev = phi_0;
-    double dphi_prev = dphi_0;        
-    // dphi_0 passed in
+    int max_ls = 20;
 
-    // Helper: Evaluation Function
-    // Computes phi(alpha) and dphi(alpha)
-    // Also outputs the resulting C_new and X_new for success case
-    auto eval_step = [&](double alpha, double& phi, double& dphi, arma::mat& X_out, arma::mat& C_out) {
+    for(int i=0; i<max_ls; ++i) {
          // Retract X -> X_new
          arma::mat X_trial = X + alpha * dir;
-         
-         // Project back to Stiefel (QR)
-         arma::mat Q, R;
+         arma::mat X_out;
+
+         // QR Retraction
          if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
               // Block A
               arma::mat Xta = X_trial.cols(0, n_alpha_orb - 1);
+              arma::mat Q, R;
               if(!arma::qr(Q, R, Xta)) { X_out = X_trial; }
               else {
                   arma::uword min_dim = std::min(R.n_rows, R.n_cols);
-                  for(arma::uword i=0; i<min_dim; ++i) if(R(i,i)<0) Q.col(i) *= -1.0;
-                  X_out = X_trial; 
+                  for(arma::uword k=0; k<min_dim; ++k) if(R(k,k)<0) Q.col(k) *= -1.0;
+                  X_out = X_trial; // Init size
                   X_out.cols(0, n_alpha_orb - 1) = Q.cols(0, Xta.n_cols - 1);
               }
               // Block B
               arma::mat Xtb = X_trial.cols(n_alpha_orb, X.n_cols - 1);
-              if(!arma::qr(Q, R, Xtb)) { /* fail */ }
-              else {
+              if(arma::qr(Q, R, Xtb)) {
                   arma::uword min_dim = std::min(R.n_rows, R.n_cols);
-                  for(arma::uword i=0; i<min_dim; ++i) if(R(i,i)<0) Q.col(i) *= -1.0;
+                  for(arma::uword k=0; k<min_dim; ++k) if(R(k,k)<0) Q.col(k) *= -1.0;
                   X_out.cols(n_alpha_orb, X.n_cols - 1) = Q.cols(0, Xtb.n_cols - 1);
               }
          } else {
-              // Single block
-              if (!arma::qr(Q, R, X_trial)) { X_out = X; }
+              arma::mat Q, R;
+              if (!arma::qr(Q, R, X_trial)) { X_out = X_trial; }
               else {
                  arma::uword min_dim = std::min(R.n_rows, R.n_cols);
-                 for(arma::uword i=0; i<min_dim; ++i) if(R(i,i) < 0) Q.col(i) *= -1.0;
+                 for(arma::uword k=0; k<min_dim; ++k) if(R(k,k) < 0) Q.col(k) *= -1.0;
                  X_out = Q.cols(0, X.n_cols - 1);
               }
          }
          
-         C_out = from_orthogonal_basis(X_out);
+         arma::mat C_trial = from_orthogonal_basis(X_out);
          arma::mat gC_local; arma::vec gn_local;
-         phi = functional_->energy(C_out, n, gC_local, gn_local);
+         double E_new = functional_->energy(C_trial, n, gC_local, gn_local);
          
-         // Riemannian Grad at X_out
-         arma::mat gX = S_inv_sqrt_ * gC_local;
-         arma::mat grad_new;
-         
-         if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
-             arma::mat Xa = X_out.cols(0, n_alpha_orb - 1);
-             arma::mat gXa = gX.cols(0, n_alpha_orb - 1);
-             arma::mat grad_a = gXa - Xa * gXa.t() * Xa;
-             
-             arma::mat Xb = X_out.cols(n_alpha_orb, X.n_cols - 1);
-             arma::mat gXb = gX.cols(n_alpha_orb, X.n_cols - 1);
-             arma::mat grad_b = gXb - Xb * gXb.t() * Xb;
-             
-             grad_new = gX; // Init size
-             grad_new.cols(0, n_alpha_orb - 1) = grad_a;
-             grad_new.cols(n_alpha_orb, X.n_cols - 1) = grad_b;
-         } else {
-             grad_new = gX - X_out * gX.t() * X_out;
+         // Armijo Condition
+         if (E_new <= E_initial + c1 * alpha * dphi_0) {
+             X_new = X_out;
+             C_new = C_trial;
+             return alpha;
          }
-
-         // Vector Transport of dir: T(eta) = eta - X_new * sym(X_new^T * eta)
-         // Assuming Euclidean transport approx for step is roughly okay, 
-         // but proper projection transport is better.
-         arma::mat Xt_dir = X_out.t() * dir;
-         arma::mat sym_Xt_dir = 0.5 * (Xt_dir + Xt_dir.t());
-         arma::mat transported_dir = dir - X_out * sym_Xt_dir;
-
-         dphi = arma::dot(grad_new, transported_dir);
-    };
-
-    // Zoom Function (Algorithm 3.6)
-    auto zoom = [&](double alo, double ahi, double phi_lo, double phi_hi, double dphi_lo) -> double {
-        int max_zoom = 10;
-        for(int j=0; j<max_zoom; ++j) {
-            // Interpolation (Cubic/Quadratic) - simplified to bisection/quadratic
-            // Using simple bisection for safety for now, or quadratic
-            double aj = 0.5 * (alo + ahi); 
-
-            arma::mat Xj, Cj;
-            double phij, dphij;
-            eval_step(aj, phij, dphij, Xj, Cj);
-            
-            // Check Armijo
-            if (phij > phi_0 + c1 * aj * dphi_0 || phij >= phi_lo) {
-                ahi = aj;
-                phi_hi = phij;
-            } else {
-                // Check Curvature
-                if (std::abs(dphij) <= -c2 * dphi_0) {
-                    C_new = Cj; X_new = Xj;
-                    return aj; // Optimal found
-                }
-                if (dphij * (ahi - alo) >= 0) {
-                    ahi = alo;
-                    phi_hi = phi_lo;
-                }
-                alo = aj;
-                phi_lo = phij;
-                dphi_lo = dphij;
-            }
-        }
-        // Fallback to lo
-        // Need to set C_new/X_new to alo state
-        double check_phi, check_dphi;
-        eval_step(alo, check_phi, check_dphi, X_new, C_new);
-        return alo;
-    };
-
-    // Main Line Search Loop (Algorithm 3.5)
-    for(int i=0; i<10; ++i) {
-        arma::mat Xi, Ci;
-        double phi_curr, dphi_curr;
-        eval_step(alpha_curr, phi_curr, dphi_curr, Xi, Ci);
-        
-        if ( (phi_curr > phi_0 + c1 * alpha_curr * dphi_0) || (i > 0 && phi_curr >= phi_prev) ) {
-            // Need dphi at alpha_prev which is dphi_0 for i=0.
-            double dphi_prev_iter = (i==0) ? dphi_0 : dphi_prev;
-            return zoom(alpha_prev, alpha_curr, phi_prev, phi_curr, dphi_prev_iter); 
-        }
-        
-        if (std::abs(dphi_curr) <= -c2 * dphi_0) {
-            C_new = Ci; X_new = Xi;
-            return alpha_curr; // Strong Wolfe satisfied
-        }
-        
-        if (dphi_curr >= 0) {
-            return zoom(alpha_curr, alpha_prev, phi_curr, phi_prev, dphi_curr);
-        }
-        
-        alpha_prev = alpha_curr;
-        phi_prev = phi_curr;
-        dphi_prev = dphi_curr;
-        
-        alpha_curr *= 1.5; // Simple extrapolation
-        if(alpha_curr > alpha_max) alpha_curr = alpha_max;
+         
+         alpha *= rho;
     }
     
-    return 0.0; // Failed
+    return 0.0;
 }
 
 } // namespace rdmft

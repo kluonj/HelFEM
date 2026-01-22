@@ -97,7 +97,7 @@ public:
 };
 
 // Compute HF energy for given orbitals and occupations
-// NOTE: This mirrors the energy expression used in perform_dft_scf for HF.
+// NOTE: This mirrors the energy expression used in perform_scf for HF.
 inline double compute_hf_energy(helfem::atomic::basis::TwoDBasis& basis,
                                 const arma::mat& H0,
                                 const arma::mat& Ca,
@@ -125,7 +125,7 @@ inline double compute_hf_energy(helfem::atomic::basis::TwoDBasis& basis,
 NOTE: The implementation of this is identical to previous test_solver.cpp.
 Keeping it inline here for simplicity. 
 */
-inline std::pair<arma::mat, arma::mat> perform_dft_scf(helfem::atomic::basis::TwoDBasis& basis, 
+inline std::pair<arma::mat, arma::mat> perform_scf(helfem::atomic::basis::TwoDBasis& basis, 
                                                 const arma::mat& S, 
                                                 const arma::mat& H0, 
                                                 int Na, int Nb,

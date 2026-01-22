@@ -10,7 +10,7 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
 
     // Use DFT SCF to get reasonable initial orbitals
     int x_func_id = 1; int c_func_id = 7;
-    auto orbits = perform_dft_scf(basis, S, H0, Na, Nb, x_func_id, c_func_id);
+    auto orbits = perform_scf(basis, S, H0, Na, Nb, x_func_id, c_func_id);
     arma::mat Ca = orbits.first;
     arma::mat Cb = orbits.second;
 
