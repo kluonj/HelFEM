@@ -33,7 +33,7 @@ static double total_energy(helfem::atomic::basis::TwoDBasis &basis,
                            const arma::vec &nocc,
                            double power) {
   arma::mat Hcore = basis.kinetic() + basis.nuclear();
-  double Ecore = helfem::rdmft::core_energy(Hcore, C_AO, nocc);
+  double Ecore = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, C_AO, nocc);
   double EJ = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc);
   double Exc = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power);
   return Ecore + EJ + Exc;
@@ -222,7 +222,9 @@ static int hf_component_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
     // (named e_xx earlier in this function).
     E_xc_r = e_xc;
   } else {
-    E_core_r = helfem::rdmft::core_energy(H0, C_AO, n_final);
+    H0.print("H0 check:");
+    C_AO.print("C_AO check:");
+    E_core_r = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(H0, C_AO, n_final);
     E_J_r = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, n_final);
     E_xc_r = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, n_final, 1.0);
   }
@@ -247,7 +249,7 @@ static int occ_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
   arma::vec nocc(2*Norb); nocc.fill(0.8);
   const double power = 1.0;
   arma::vec gn;
-  helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gn);
+  helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gn);
   const double eps = 1e-6; double max_diff = 0.0;
   for(arma::uword i=0;i<nocc.n_elem;++i) {
     arma::vec nplus = nocc; arma::vec nminus = nocc;
@@ -276,7 +278,7 @@ static int orb_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
   arma::mat gC_core, gC_h, gC_xc;
   helfem::rdmft::core_orbital_gradient(Hcore, C_AO, nocc, gC_core);
   helfem::rdmft::hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, gC_h);
-  helfem::rdmft::muller_xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gC_xc);
+  helfem::rdmft::xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gC_xc);
   arma::mat gC = gC_core + gC_h + gC_xc;
   const double eps = 1e-6;
   arma::uword max_rows = std::min<arma::uword>(5, C_AO.n_rows);

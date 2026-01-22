@@ -45,8 +45,8 @@ public:
         arma::mat Pb = Cb * arma::diagmat(nb) * Cb.t();
         arma::mat Ptot = Pa + Pb;
         
-        double E_core_a = helfem::rdmft::core_energy(Hcore, Ca, na);
-        double E_core_b = helfem::rdmft::core_energy(Hcore, Cb, nb);
+        double E_core_a = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, Ca, na);
+        double E_core_b = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, Cb, nb);
         double E_core = E_core_a + E_core_b;
 
         arma::mat J_total = basis.coulomb(Ptot);
@@ -67,16 +67,16 @@ public:
         gCa_J = 2.0 * J_total * Ca * arma::diagmat(na);
         gCb_J = 2.0 * J_total * Cb * arma::diagmat(nb);
 
-        helfem::rdmft::muller_xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gCa_xc);
-        helfem::rdmft::muller_xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gCb_xc);
+        helfem::rdmft::xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gCa_xc);
+        helfem::rdmft::xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gCb_xc);
 
         gC.set_size(arma::size(C));
         gC.cols(0, Na-1) = gCa_core + gCa_J + gCa_xc;
         gC.cols(Na, Na+Nb-1) = gCb_core + gCb_J + gCb_xc;
 
         arma::vec gna_full, gnb_full;
-        helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_full);
-        helfem::rdmft::muller_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_full);
+        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_full);
+        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_full);
 
         arma::mat J_pa = basis.coulomb(Pa);
         arma::mat J_pb = basis.coulomb(Pb);
