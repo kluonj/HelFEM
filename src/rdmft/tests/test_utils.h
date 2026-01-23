@@ -1,5 +1,5 @@
-#ifndef RDMFT_TEST_UTILS_H
-#define RDMFT_TEST_UTILS_H
+#ifndef TEST_UTILS_H
+#define TEST_UTILS_H
 
 #include <iostream>
 #include <armadillo>
@@ -9,9 +9,9 @@
 #include "atomic/dftgrid.h"
 #include "general/model_potential.h"
 #include "general/scf_helpers.h"
-#include "rdmft/rdmft_solver.h"
-#include "rdmft/rdmft_energy.h"
-#include "rdmft/rdmft_gradients.h"
+#include "rdmft/solver.h"
+#include "rdmft/energy.h"
+#include "rdmft/gradients.h"
 
 using namespace helfem;
 using namespace helfem::rdmft;
@@ -190,4 +190,4 @@ inline std::pair<arma::mat, arma::mat> perform_scf(helfem::atomic::basis::TwoDBa
     return {Ca, Cb};
 }
 
-#endif // RDMFT_TEST_UTILS_H
+#endif // TEST_UTILS_H

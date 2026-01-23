@@ -1,8 +1,8 @@
-// rdmft_gradients.h
+// gradients.h
 // Small helpers for gradients and occupation transformations used by optimizers.
 
-#ifndef HELFEM_RDMFT_GRADIENTS_H
-#define HELFEM_RDMFT_GRADIENTS_H
+#ifndef GRADIENTS_H
+#define GRADIENTS_H
 
 #include <armadillo>
 
@@ -86,5 +86,5 @@ void compute_occupation_gradient(BasisType& basis,
 } // namespace rdmft
 } // namespace helfem
 
-#endif // HELFEM_RDMFT_GRADIENTS_H
+#endif // GRADIENTS_H
 

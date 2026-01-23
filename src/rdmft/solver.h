@@ -1,19 +1,19 @@
-#ifndef HELFEM_RDMFT_SOLVER_H
-#define HELFEM_RDMFT_SOLVER_H
+#ifndef SOLVER_H
+#define SOLVER_H
 
 #include <armadillo>
 #include <memory>
 #include <functional>
-#include "rdmft_energy.h"
+#include "energy.h"
 
 namespace helfem {
 namespace rdmft {
 
-class RDMFT_Solver {
+class Solver {
 public:
     // Constructor takes the energy functional (which computes E and gradients)
     // and the overlap matrix S (to enforce orthonormality C^T S C = I).
-    RDMFT_Solver(std::shared_ptr<EnergyFunctional<void>> functional, const arma::mat& S);
+    Solver(std::shared_ptr<EnergyFunctional<void>> functional, const arma::mat& S);
 
     // Templated convenience constructor to wrap a Basis into an EnergyFunctional
     // This requires a helper class that adapts Basis to EnergyFunctional.
@@ -81,15 +81,15 @@ public:
 
     double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
         // Need to import gradient functions. Assuming they mirror energy functions
-        // but are located in rdmft_gradients.h (helper functions, not class methods).
-        // Since I don't have rdmft_gradients.h content, I will assume names based on context
-        // or I might need to read rdmft_gradients.h first to be sure.
+        // but are located in gradients.h (helper functions, not class methods).
+        // Since I don't have gradients.h content, I will assume names based on context
+        // or I might need to read gradients.h first to be sure.
         
-        // For now, assume rdmft_gradients.h provides:
+        // For now, assume gradients.h provides:
         // core_gradient(...), hartree_gradient(...), xc_gradient(...)
-        // similar to rdmft_energy.h
+        // similar to energy.h
         
-        // This is a placeholder; real implementation depends on rdmft_gradients.h content.
+        // This is a placeholder; real implementation depends on gradients.h content.
         return 0.0; 
     }
     

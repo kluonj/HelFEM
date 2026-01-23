@@ -1,7 +1,7 @@
 #include <iostream>
 #include "../general/checkpoint.h"
 #include "../atomic/TwoDBasis.h"
-#include "../rdmft/rdmft_energy.h"
+#include "../rdmft/energy.h"
 
 using namespace helfem;
 

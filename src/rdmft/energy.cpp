@@ -1,4 +1,4 @@
-#include "rdmft_energy.h"
+#include "energy.h"
 #include "../atomic/TwoDBasis.h"
 #include <stdexcept>
 

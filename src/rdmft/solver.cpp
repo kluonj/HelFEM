@@ -1,6 +1,6 @@
-#include "rdmft_solver.h"
+#include "solver.h"
 #include "general/scf_helpers.h"
-#include "rdmft_gradients.h"
+#include "gradients.h"
 #include <iostream>
 #include <iomanip>
 #include <algorithm> // For std::max, std::min
@@ -9,7 +9,7 @@
 namespace helfem {
 namespace rdmft {
 
-RDMFT_Solver::RDMFT_Solver(std::shared_ptr<EnergyFunctional<void>> functional, const arma::mat& S)
+Solver::Solver(std::shared_ptr<EnergyFunctional<void>> functional, const arma::mat& S)
     : functional_(functional), S_(S) {
     
     // Compute S^{-1/2} (Sinvh)
@@ -19,20 +19,20 @@ RDMFT_Solver::RDMFT_Solver(std::shared_ptr<EnergyFunctional<void>> functional, c
     S_sqrt_ = S_ * S_inv_sqrt_;
 }
 
-arma::mat RDMFT_Solver::to_orthogonal_basis(const arma::mat& C) {
+arma::mat Solver::to_orthogonal_basis(const arma::mat& C) {
     return S_sqrt_.t() * C; // Ideally S_sqrt is symmetric, so S_sqrt * C
 }
 
-arma::mat RDMFT_Solver::from_orthogonal_basis(const arma::mat& X) {
+arma::mat Solver::from_orthogonal_basis(const arma::mat& X) {
     return S_inv_sqrt_ * X;
 }
 
-void RDMFT_Solver::solve(arma::mat& C, arma::vec& n, double target_N) {
+void Solver::solve(arma::mat& C, arma::vec& n, double target_N) {
     // Single channel backward compatibility wrapper
     solve(C, n, target_N, 0.0, -1);
 }
 
-void RDMFT_Solver::solve(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb) {
+void Solver::solve(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb) {
     if (verbose_) {
         std::cout << "Starting RDMFT Solver (Reimannian CG + Projected Gradient)\n";
         if(n_alpha_orb > 0) std::cout << "Dual Channel Mode: Na=" << target_Na << ", Nb=" << target_Nb << "\n";
@@ -84,7 +84,7 @@ void RDMFT_Solver::solve(arma::mat& C, arma::vec& n, double target_Na, double ta
     }
 }
 
-void RDMFT_Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb, double& mu_a, double& mu_b, double rho) {
+void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb, double& mu_a, double& mu_b, double rho) {
     // Projected Gradient Descent with simple line search
     
     // Initial energy
@@ -183,7 +183,7 @@ void RDMFT_Solver::optimize_occupations(arma::mat& C, arma::vec& n, double targe
     if (verbose_) std::cout << "  [Occ] Energy after optimize: " << E << "\n";
 }
 
-void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb) {
+void Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb) {
     // Riemannian CG on Stiefel Manifold(s)
     
     // Switch to orthogonal basis
@@ -291,7 +291,7 @@ void RDMFT_Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb
     if (verbose_) std::cout << "  [Orb] Energy after optimize: " << E << "\n";
 }
 
-double RDMFT_Solver::perform_linesearch(const arma::mat& C, const arma::vec& n, const arma::mat& X, const arma::mat& dir, double E_initial, double dphi_0, int n_alpha_orb, arma::mat& C_new, arma::mat& X_new) {
+double Solver::perform_linesearch(const arma::mat& C, const arma::vec& n, const arma::mat& X, const arma::mat& dir, double E_initial, double dphi_0, int n_alpha_orb, arma::mat& C_new, arma::mat& X_new) {
     // Backtracking Armijo Line Search
     // Robust for Steepest Descent
     

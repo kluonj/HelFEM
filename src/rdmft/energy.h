@@ -1,8 +1,8 @@
-// rdmft_energy.h
+// energy.h
 // Defines a minimal, reusable interface for RDMFT energy functionals.
 
-#ifndef HELFEM_RDMFT_ENERGY_H
-#define HELFEM_RDMFT_ENERGY_H
+#ifndef ENERGY_H
+#define ENERGY_H
 
 #include <armadillo>
 
@@ -56,4 +56,4 @@ double compute_energy(BasisType& basis,
 } // namespace rdmft
 } // namespace helfem
 
-#endif // HELFEM_RDMFT_ENERGY_H
+#endif // ENERGY_H

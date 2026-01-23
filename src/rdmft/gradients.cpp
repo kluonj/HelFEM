@@ -1,4 +1,4 @@
-#include "rdmft_gradients.h"
+#include "gradients.h"
 #include "../atomic/TwoDBasis.h"
 #include <stdexcept>
 #include <algorithm>

@@ -1,6 +1,6 @@
 #include "general/checkpoint.h"
-#include "rdmft/rdmft_energy.h"
-#include "rdmft/rdmft_gradients.h"
+#include "rdmft/energy.h"
+#include "rdmft/gradients.h"
 #include "atomic/TwoDBasis.h"
 #include "general/scf_helpers.h"
 #include "general/diis.h"

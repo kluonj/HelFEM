@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <string>
 #include <iomanip>
-#include "rdmft_test_utils.h"
+#include "test_utils.h"
 
 // Optimize occupations only (fixed orbitals)
 // Then check if energy matches a reference HF calculation.
@@ -32,7 +32,7 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
         int Nb_orb = Cb.n_cols;
 
         auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
-        RDMFT_Solver solver(func, S);
+        Solver solver(func, S);
 
         arma::mat C_tot(Ca.n_rows, Na_orb + Nb_orb);
         C_tot.cols(0, Na_orb - 1) = Ca;

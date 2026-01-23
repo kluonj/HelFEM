@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "rdmft_test_utils.h"
+#include "test_utils.h"
 
 // Optimize Orbitals Only (Fixed Occupations from Integer Guess)
 void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat& S, const arma::mat& H0) {
@@ -18,7 +18,7 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     int Nb_orb = Cb.n_cols;
 
     auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
-    RDMFT_Solver solver(func, S);
+    Solver solver(func, S);
 
     // Build concatenated C and occupations
     arma::mat C_tot(Ca.n_rows, Na_orb + Nb_orb);
