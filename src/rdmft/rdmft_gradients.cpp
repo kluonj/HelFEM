@@ -47,7 +47,9 @@ arma::vec project_capped_simplex(const arma::vec& y, double target_sum, double* 
     arma::uvec free = arma::find((x > 1e-12) % (x < 1.0 - 1e-12));
     if (!free.empty()) {
       x(free) -= diff / double(free.n_elem);
-      x.transform([](double v) { return std::min(1.0, std::max(0.0, v)); });
+      x.transform(
+        [](double v) { return std::min(1.0, std::max(0.0, v)); }
+    );
     }
   }
   return x;

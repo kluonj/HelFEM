@@ -1,4 +1,5 @@
 #include "rdmft_energy.h"
+#include "rdmft_gradients.h"
 #include "../atomic/TwoDBasis.h"
 #include <stdexcept>
 
@@ -78,10 +79,51 @@ double xc_energy(BasisType& basis, const arma::mat& C_AO, const arma::vec& n, do
   return E_xca + E_xcb;
 }
 
+template <typename BasisType>
+double compute_energy_and_gradients(BasisType& basis,
+                                    const arma::mat& Hcore,
+                                    const arma::mat& C_AO,
+                                    const arma::vec& n,
+                                    double power,
+                                    arma::mat& gC,
+                                    arma::vec& gn) {
+    // 1. Energy
+    double E_core = core_energy<BasisType>(Hcore, C_AO, n);
+    double E_hx = hartree_energy<BasisType>(basis, C_AO, n); 
+    double E_xc = xc_energy<BasisType>(basis, C_AO, n, power);
+    
+    // 2. Orbital Gradients
+    arma::mat gC_core;
+    core_orbital_gradient(Hcore, C_AO, n, gC_core);
+    
+    arma::mat gC_hx;
+    hartree_orbital_gradient(basis, C_AO, n, gC_hx);
+    
+    arma::mat gC_xc;
+    xc_orbital_gradient(basis, C_AO, n, power, gC_xc);
+    
+    gC = gC_core + gC_hx + gC_xc;
+    
+    // 3. Occupation Gradients
+    arma::vec gn_core;
+    core_occupation_gradient(Hcore, C_AO, n, gn_core);
+    
+    arma::vec gn_hx;
+    hartree_occupation_gradient(basis, C_AO, n, gn_hx);
+    
+    arma::vec gn_xc;
+    xc_occupation_gradient(basis, C_AO, n, power, gn_xc);
+    
+    gn = gn_core + gn_hx + gn_xc;
+    
+    return E_core + E_hx + E_xc;
+}
+
 // Explicit instantiations
 template double core_energy<helfem::atomic::basis::TwoDBasis>(const arma::mat&, const arma::mat&, const arma::vec&);
 template double hartree_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&);
 template double xc_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double);
+template double compute_energy_and_gradients<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, arma::vec&);
 
 } // namespace rdmft
 } // namespace helfem
