@@ -146,8 +146,28 @@ void xc_orbital_gradient(BasisType& basis,
                                        const arma::mat& C_AO,
                                        const arma::vec& n,
                                        double power,
-                                       arma::mat& gC_out) {
+                                       arma::mat& gC_out,
+                                       int n_alpha) {
   if(C_AO.n_cols == 0) { gC_out.reset(); return; }
+  
+  // Unrestricted case with C containing [Ca, Cb]
+  if (n_alpha > 0) {
+      int n_beta = C_AO.n_cols - n_alpha;
+      if (n.n_elem != C_AO.n_cols) throw std::logic_error("xc_orbital_gradient: occupation vector size mismatch for n_alpha > 0");
+      
+      arma::mat Ca = C_AO.head_cols(n_alpha);
+      arma::mat Cb = C_AO.tail_cols(n_beta);
+      arma::vec na = n.head(n_alpha);
+      arma::vec nb = n.tail(n_beta);
+
+      arma::mat gCa, gCb;
+      xc_orbital_gradient(basis, Ca, na, power, gCa, 0);
+      xc_orbital_gradient(basis, Cb, nb, power, gCb, 0);
+
+      gC_out = arma::join_horiz(gCa, gCb);
+      return;
+  }
+
   arma::uword Norb = C_AO.n_cols;
   arma::vec na, nb;
   bool split_spin = false;
@@ -185,10 +205,29 @@ void xc_occupation_gradient(BasisType& basis,
                                       const arma::mat& C_AO,
                                       const arma::vec& n,
                                       double power,
-                                      arma::vec& gn_out) {
+                                      arma::vec& gn_out,
+                                      int n_alpha) {
   arma::uword Norb = C_AO.n_cols;
   arma::uword Nocc = n.n_elem;
   if (Norb == 0) { gn_out.reset(); return; }
+
+  // Unrestricted case with C containing [Ca, Cb]
+  if (n_alpha > 0) {
+      int n_beta = C_AO.n_cols - n_alpha;
+      if (Nocc != C_AO.n_cols) throw std::logic_error("xc_occupation_gradient: occupation vector size mismatch for n_alpha > 0");
+      
+      arma::mat Ca = C_AO.head_cols(n_alpha);
+      arma::mat Cb = C_AO.tail_cols(n_beta);
+      arma::vec na = n.head(n_alpha);
+      arma::vec nb = n.tail(n_beta);
+
+      arma::vec gna, gnb;
+      xc_occupation_gradient(basis, Ca, na, power, gna, 0);
+      xc_occupation_gradient(basis, Cb, nb, power, gnb, 0);
+
+      gn_out = arma::join_cols(gna, gnb);
+      return;
+  }
 
   arma::vec na, nb;
   bool split_spin = false;
@@ -246,7 +285,8 @@ void compute_orbital_gradient(BasisType& basis,
                               const arma::mat& C_AO,
                               const arma::vec& n,
                               double power,
-                              arma::mat& gC_out) {
+                              arma::mat& gC_out,
+                              int n_alpha) {
     arma::mat gC_core;
     core_orbital_gradient(Hcore, C_AO, n, gC_core);
     
@@ -254,7 +294,7 @@ void compute_orbital_gradient(BasisType& basis,
     hartree_orbital_gradient(basis, C_AO, n, gC_hartree);
     
     arma::mat gC_xc;
-    xc_orbital_gradient(basis, C_AO, n, power, gC_xc);
+    xc_orbital_gradient(basis, C_AO, n, power, gC_xc, n_alpha);
     
     gC_out = gC_core + gC_hartree + gC_xc;
 }
@@ -265,7 +305,8 @@ void compute_occupation_gradient(BasisType& basis,
                                  const arma::mat& C_AO,
                                  const arma::vec& n,
                                  double power,
-                                 arma::vec& gn_out) {
+                                 arma::vec& gn_out,
+                                 int n_alpha) {
     arma::vec gn_core;
     core_occupation_gradient(Hcore, C_AO, n, gn_core);
     
@@ -273,7 +314,7 @@ void compute_occupation_gradient(BasisType& basis,
     hartree_occupation_gradient(basis, C_AO, n, gn_hartree);
     
     arma::vec gn_xc;
-    xc_occupation_gradient(basis, C_AO, n, power, gn_xc);
+    xc_occupation_gradient(basis, C_AO, n, power, gn_xc, n_alpha);
     
     gn_out = gn_core + gn_hartree + gn_xc;
 }
@@ -281,10 +322,10 @@ void compute_occupation_gradient(BasisType& basis,
 // Explicit instantiations
 template void hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::mat&);
 template void hartree_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::vec&);
-template void xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::mat&);
-template void xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::vec&);
-template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&);
-template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&);
+template void xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::mat&, int);
+template void xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::vec&, int);
+template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, int);
+template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&, int);
 
 } // namespace rdmft
 } // namespace helfem

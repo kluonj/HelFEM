@@ -51,7 +51,8 @@ void xc_orbital_gradient(BasisType& basis,
                                        const arma::mat& C_AO,
                                        const arma::vec& n,
                                        double power,
-                                       arma::mat& gC_out);
+                                       arma::mat& gC_out,
+                                       int n_alpha = 0);
 
 // XC occupation gradient
 template <typename BasisType>
@@ -59,7 +60,8 @@ void xc_occupation_gradient(BasisType& basis,
                                       const arma::mat& C_AO,
                                       const arma::vec& n,
                                       double power,
-                                      arma::vec& gn_out);
+                                      arma::vec& gn_out,
+                                      int n_alpha = 0);
 
 // Compute total orbital gradient: gC_core + gC_Hartree + gC_XC
 template <typename BasisType>
@@ -68,7 +70,8 @@ void compute_orbital_gradient(BasisType& basis,
                               const arma::mat& C_AO,
                               const arma::vec& n,
                               double power,
-                              arma::mat& gC_out);
+                              arma::mat& gC_out,
+                              int n_alpha = 0);
 
 // Compute total occupation gradient: gn_core + gn_Hartree + gn_XC
 template <typename BasisType>
@@ -77,7 +80,8 @@ void compute_occupation_gradient(BasisType& basis,
                                  const arma::mat& C_AO,
                                  const arma::vec& n,
                                  double power,
-                                 arma::vec& gn_out);
+                                 arma::vec& gn_out,
+                                 int n_alpha = 0);
 
 } // namespace rdmft
 } // namespace helfem

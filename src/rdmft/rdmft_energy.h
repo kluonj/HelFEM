@@ -41,7 +41,8 @@ template <typename BasisType>
 double xc_energy(BasisType& basis,
                  const arma::mat& C_AO,
                  const arma::vec& n,
-                 double power);
+                 double power,
+                 int n_alpha = 0);
 
 // Compute total energy: E_core + E_Hartree + E_XC
 template <typename BasisType>
@@ -49,7 +50,8 @@ double compute_energy(BasisType& basis,
                       const arma::mat& Hcore,
                       const arma::mat& C_AO,
                       const arma::vec& n,
-                      double power);
+                      double power,
+                      int n_alpha = 0);
 
 } // namespace rdmft
 } // namespace helfem

@@ -17,7 +17,7 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     int Na_orb = Ca.n_cols;
     int Nb_orb = Cb.n_cols;
 
-    auto func = std::make_shared<UnrestrictedAtomicFunctional>(basis, H0, Na_orb);
+    auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
     RDMFT_Solver solver(func, S);
 
     // Build concatenated C and occupations

@@ -42,40 +42,48 @@ double hartree_energy(BasisType& basis, const arma::mat& C_AO, const arma::vec& 
 }
 
 template <typename BasisType>
-double xc_energy(BasisType& basis, const arma::mat& C_AO, const arma::vec& n, double power) {
+double xc_energy(BasisType& basis, const arma::mat& C_AO, const arma::vec& n, double power, int n_alpha) {
   if(C_AO.n_cols == 0) return 0.0;
+  
+  if (n_alpha > 0 && n_alpha < (int)C_AO.n_cols) {
+      // Split spin channels
+      int Na = n_alpha;
+      int Nb = C_AO.n_cols - Na;
+      
+      arma::mat Ca = C_AO.cols(0, Na - 1);
+      arma::mat Cb = C_AO.cols(Na, Na + Nb - 1);
+      
+      arma::vec na = n.head(Na);
+      arma::vec nb = n.tail(Nb);
+      
+      // Recursive calls for each channel (treated as single channel)
+      return xc_energy(basis, Ca, na, power, 0) + xc_energy(basis, Cb, nb, power, 0);
+  }
+
+  // Single channel logic (assumed alpha or indistinguishable, or Restricted Spatial)
   arma::uword Norb = C_AO.n_cols;
-  arma::vec na, nb;
-  bool split_spin = false;
+  
   if (n.n_elem == 2 * Norb) {
-    split_spin = true;
-    na = n.head(Norb);
-    nb = n.tail(Norb);
-  } else if (n.n_elem == Norb) {
-    na = n;
-    nb.zeros(Norb);
-  } else {
-    throw std::logic_error("xc_energy: occupation vector size mismatch");
+      // Restricted Spatial Orbitals, Spin-Resolved Occupations
+      arma::vec na = n.head(Norb);
+      arma::vec nb = n.tail(Norb);
+      return xc_energy(basis, C_AO, na, power, 0) + xc_energy(basis, C_AO, nb, power, 0);
+  }
+  
+  if(n.n_elem != Norb) {
+      // Only support 1:1 map now
+      throw std::logic_error("xc_energy: occupation vector size mismatch (expected same as C cols)");
   }
 
   const double occ_eps = 1e-14;
-  arma::vec na_eff = arma::clamp(na, 0.0, 1.0);
-  arma::vec nb_eff = arma::clamp(nb, 0.0, 1.0);
-  arma::vec pow_na = arma::pow(arma::clamp(na_eff, occ_eps, 1.0), power);
-  arma::vec pow_nb = split_spin ? arma::pow(arma::clamp(nb_eff, occ_eps, 1.0), power) : arma::vec();
+  arma::vec n_eff = arma::clamp(n, 0.0, 1.0);
+  arma::vec pow_n = arma::pow(arma::clamp(n_eff, occ_eps, 1.0), power);
 
-  arma::mat Pa_pow = C_AO * arma::diagmat(pow_na) * C_AO.t();
-  arma::mat Ka = basis.exchange(Pa_pow);
-  double xc_prefactor = 0.5;
-  double E_xca = xc_prefactor * arma::trace(Pa_pow * Ka);
-
-  double E_xcb = 0.0;
-  if(split_spin) {
-    arma::mat Pb_pow = C_AO * arma::diagmat(pow_nb) * C_AO.t();
-    arma::mat Kb = basis.exchange(Pb_pow);
-    E_xcb = xc_prefactor * arma::trace(Pb_pow * Kb);
-  }
-  return E_xca + E_xcb;
+  arma::mat P_pow = C_AO * arma::diagmat(pow_n) * C_AO.t();
+  arma::mat K = basis.exchange(P_pow);
+  double xc_prefactor = 0.5; // Exchange is 0.5 * Tr(P * K)
+  
+  return xc_prefactor * arma::trace(P_pow * K);
 }
 
 template <typename BasisType>
@@ -83,18 +91,19 @@ double compute_energy(BasisType& basis,
                       const arma::mat& Hcore,
                       const arma::mat& C_AO,
                       const arma::vec& n,
-                      double power) {
+                      double power,
+                      int n_alpha) {
   double E_core = core_energy<BasisType>(Hcore, C_AO, n);
   double E_J = hartree_energy<BasisType>(basis, C_AO, n);
-  double E_xc = xc_energy<BasisType>(basis, C_AO, n, power);
+  double E_xc = xc_energy<BasisType>(basis, C_AO, n, power, n_alpha);
   return E_core + E_J + E_xc;
 }
 
 // Explicit instantiations
 template double core_energy<helfem::atomic::basis::TwoDBasis>(const arma::mat&, const arma::mat&, const arma::vec&);
 template double hartree_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&);
-template double xc_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double);
-template double compute_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double);
+template double xc_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, int);
+template double compute_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, int);
 
 } // namespace rdmft
 } // namespace helfem

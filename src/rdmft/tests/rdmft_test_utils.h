@@ -16,71 +16,29 @@
 using namespace helfem;
 using namespace helfem::rdmft;
 
-// Unrestricted Atomic Functional
-class UnrestrictedAtomicFunctional : public EnergyFunctional<void> {
+// RDMFT Functional for testing (Unrestricted)
+class TestRDMFTFunctional : public EnergyFunctional<void> {
 public:
     helfem::atomic::basis::TwoDBasis& basis;
     arma::mat Hcore;
     double accumulated_energy;
     int n_alpha_orb;
 
-    UnrestrictedAtomicFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb) 
+    TestRDMFTFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb) 
         : basis(b), Hcore(H0), accumulated_energy(0.0), n_alpha_orb(na_orb) {}
 
     double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
         double power = 1.0;
         
-        int Na = n_alpha_orb;
-        int Nb = C.n_cols - Na;
-        
-        if (Nb < 0) throw std::logic_error("UnrestrictedAtomicFunctional: invalid n_alpha_orb");
-        
-        arma::mat Ca = C.cols(0, Na - 1);
-        arma::mat Cb = C.cols(Na, Na + Nb - 1);
-        
-        arma::vec na = n.head(Na);
-        arma::vec nb = n.tail(Nb);
-        
-        // Use helper functions for self-consistent parts (Core + Hartree_self + XC)
-        double E_a = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power);
-        double E_b = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power);
+        // Use unified helper functions which handle n_alpha_orb splitting and cross-terms
+        accumulated_energy = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(
+            basis, Hcore, C, n, power, n_alpha_orb);
 
-        // Add cross-term interaction (Hartree only): E_cross = Tr(Pa * Jb)
-        arma::mat Pa = Ca * arma::diagmat(na) * Ca.t();
-        arma::mat Pb = Cb * arma::diagmat(nb) * Cb.t();
-        arma::mat Ja = basis.coulomb(Pa);
-        arma::mat Jb = basis.coulomb(Pb);
-        
-        double E_cross = arma::trace(Pa * Jb);
-        accumulated_energy = E_a + E_b + E_cross;
+        helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(
+            basis, Hcore, C, n, power, gC, n_alpha_orb);
 
-        // Gradients using helpers
-        arma::mat gCa, gCb;
-        helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power, gCa);
-        helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power, gCb);
-
-        // Add Hartree cross-term gradients: d(E_cross)/dC
-        gCa += 2.0 * Jb * Ca * arma::diagmat(na);
-        gCb += 2.0 * Ja * Cb * arma::diagmat(nb);
-
-        gC.set_size(arma::size(C));
-        gC.cols(0, Na-1) = gCa;
-        gC.cols(Na, Na+Nb-1) = gCb;
-
-        arma::vec gna, gnb;
-        helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power, gna);
-        helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power, gnb);
-        
-        // Add Hartree cross-term gradients: d(E_cross)/dn
-        arma::mat Jb_no_a = Ca.t() * Jb * Ca;
-        arma::mat Ja_no_b = Cb.t() * Ja * Cb;
-        
-        gna += Jb_no_a.diag();
-        gnb += Ja_no_b.diag();
-
-        gn.set_size(Na + Nb);
-        gn.head(Na) = gna;
-        gn.tail(Nb) = gnb;
+        helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(
+            basis, Hcore, C, n, power, gn, n_alpha_orb);
         
         return accumulated_energy;
     }
