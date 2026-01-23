@@ -49,12 +49,14 @@ void optimize_orb_only_h0(helfem::atomic::basis::TwoDBasis& basis, const arma::m
     std::cout << "Initial occupations (alpha head): " << n_tot.head(std::min(5, Na_orb)).t();
 
     solver.set_verbose(true);
+    solver.set_max_outer_iter(200);
+
     solver.set_optimize_occupations(false); // FIXED OCCUPATIONS
     solver.set_optimize_orbitals(true);    // OPTIMIZE ORBITALS
-    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
+    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
     solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
     solver.set_orbital_lbfgs_history(8);
-    solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::DiagHessian);
+    solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::None);
 
     // Use dual-channel solve entrypoint
     solver.solve(C_tot, n_tot, double(Na), double(Nb), Na_orb);
