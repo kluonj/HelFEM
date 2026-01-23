@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include "energy.h"
+#include "optimizer.h"
 
 namespace helfem {
 namespace rdmft {
@@ -26,6 +27,10 @@ public:
 
     void set_optimize_occupations(bool b) { do_optimize_occupations_ = b; }
     void set_optimize_orbitals(bool b) { do_optimize_orbitals_ = b; }
+
+    void set_orbital_optimizer(OrbitalOptimizer::Method m) { optimizer_.set_method(m); }
+    void set_orbital_linesearch(OrbitalOptimizer::LineSearch ls) { optimizer_.set_line_search(ls); }
+    void set_orbital_lbfgs_history(int m) { optimizer_.set_lbfgs_history(m); }
 
     // Solve for ground state.
     // C: initial guess (and output) orbitals
@@ -49,12 +54,14 @@ private:
     arma::mat S_sqrt_; // S^{1/2}
     arma::mat S_inv_sqrt_; // S^{-1/2}
 
+    OrbitalOptimizer optimizer_;
+
     int max_outer_iter_ = 100;
     int max_occ_iter_ = 20;
     int max_orb_iter_ = 20;
 
-    double occ_tol_ = 1e-6;
-    double orb_tol_ = 1e-6;
+    double occ_tol_ = 1e-8;
+    double orb_tol_ = 1e-8;
     bool verbose_ = true;
 
     bool do_optimize_occupations_ = true;
@@ -64,7 +71,6 @@ private:
     // If n_alpha_orb > 0, treats as two-channel. If 0 or -1, treats as one channel.
     void optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb, double& mu_a, double& mu_b, double rho);
     void optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb);
-    double perform_linesearch(const arma::mat& C, const arma::vec& n, const arma::mat& X, const arma::mat& dir, double E_initial, double dphi_0, int n_alpha_orb, arma::mat& C_new, arma::mat& X_new);
 
     // Helper: Orthogonalize C: X = S^{1/2} C
     arma::mat to_orthogonal_basis(const arma::mat& C);

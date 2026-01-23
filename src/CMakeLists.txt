@@ -14,6 +14,7 @@ general/model_potential.cpp
 rdmft/solver.cpp
 rdmft/energy.cpp
 rdmft/gradients.cpp
+rdmft/optimizer.cpp
 )
 target_link_libraries(helfem-common PUBLIC helfem)
 target_include_directories(helfem-common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../libhelfem/src/")

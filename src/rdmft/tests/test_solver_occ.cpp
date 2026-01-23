@@ -49,6 +49,8 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
 
         solver.set_verbose(true);
         solver.set_optimize_orbitals(false); // FIXED ORBITALS
+        solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
+        solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::Armijo);
 
         solver.solve(C_tot, n_tot, target_Na, target_Nb, Na_orb);
 
