@@ -298,7 +298,7 @@ double RDMFT_Solver::perform_linesearch(const arma::mat& C, const arma::vec& n, 
     double alpha = 1.0;
     double rho = 0.5;
     double c1 = 1e-4;
-    int max_ls = 10;
+    int max_ls = 20;
 
     for(int i=0; i<max_ls; ++i) {
          // Retract X -> X_new

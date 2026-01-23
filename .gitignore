@@ -9,3 +9,4 @@ helfem.chk
 *.log
 nap_rdmft/
 helfem_hf.chk
+.vscode/settings.json

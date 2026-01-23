@@ -43,8 +43,8 @@ add_executable(sphtest general/sphtest.cpp)
 target_link_libraries(sphtest helfem-common legendre)
 
 
-add_executable(test_rdmft_energy_gradient rdmft/tests/test_rdmft_energy_gradient.cpp)
-target_link_libraries(test_rdmft_energy_gradient helfem-common legendre )
+add_executable(test_energy_gradient rdmft/tests/test_energy_gradient.cpp)
+target_link_libraries(test_energy_gradient helfem-common legendre )
 
 
 # target_include_directories(helfem-rdmft PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rdmft)
