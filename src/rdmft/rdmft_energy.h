@@ -43,16 +43,13 @@ double xc_energy(BasisType& basis,
                  const arma::vec& n,
                  double power);
 
-// Compute total energy and all gradients
-// This matches the signature of EnergyFunctional::energy but takes Hcore/Basis/power explicitly.
+// Compute total energy: E_core + E_Hartree + E_XC
 template <typename BasisType>
-double compute_energy_and_gradients(BasisType& basis,
-                                    const arma::mat& Hcore,
-                                    const arma::mat& C_AO,
-                                    const arma::vec& n,
-                                    double power,
-                                    arma::mat& gC,
-                                    arma::vec& gn);
+double compute_energy(BasisType& basis,
+                      const arma::mat& Hcore,
+                      const arma::mat& C_AO,
+                      const arma::vec& n,
+                      double power);
 
 } // namespace rdmft
 } // namespace helfem

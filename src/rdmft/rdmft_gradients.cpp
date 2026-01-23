@@ -240,11 +240,51 @@ void xc_occupation_gradient(BasisType& basis,
   }
 }
 
+template <typename BasisType>
+void compute_orbital_gradient(BasisType& basis,
+                              const arma::mat& Hcore,
+                              const arma::mat& C_AO,
+                              const arma::vec& n,
+                              double power,
+                              arma::mat& gC_out) {
+    arma::mat gC_core;
+    core_orbital_gradient(Hcore, C_AO, n, gC_core);
+    
+    arma::mat gC_hartree;
+    hartree_orbital_gradient(basis, C_AO, n, gC_hartree);
+    
+    arma::mat gC_xc;
+    xc_orbital_gradient(basis, C_AO, n, power, gC_xc);
+    
+    gC_out = gC_core + gC_hartree + gC_xc;
+}
+
+template <typename BasisType>
+void compute_occupation_gradient(BasisType& basis,
+                                 const arma::mat& Hcore,
+                                 const arma::mat& C_AO,
+                                 const arma::vec& n,
+                                 double power,
+                                 arma::vec& gn_out) {
+    arma::vec gn_core;
+    core_occupation_gradient(Hcore, C_AO, n, gn_core);
+    
+    arma::vec gn_hartree;
+    hartree_occupation_gradient(basis, C_AO, n, gn_hartree);
+    
+    arma::vec gn_xc;
+    xc_occupation_gradient(basis, C_AO, n, power, gn_xc);
+    
+    gn_out = gn_core + gn_hartree + gn_xc;
+}
+
 // Explicit instantiations
 template void hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::mat&);
 template void hartree_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::vec&);
 template void xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::mat&);
 template void xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::vec&);
+template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&);
+template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&);
 
 } // namespace rdmft
 } // namespace helfem

@@ -61,6 +61,24 @@ void xc_occupation_gradient(BasisType& basis,
                                       double power,
                                       arma::vec& gn_out);
 
+// Compute total orbital gradient: gC_core + gC_Hartree + gC_XC
+template <typename BasisType>
+void compute_orbital_gradient(BasisType& basis,
+                              const arma::mat& Hcore,
+                              const arma::mat& C_AO,
+                              const arma::vec& n,
+                              double power,
+                              arma::mat& gC_out);
+
+// Compute total occupation gradient: gn_core + gn_Hartree + gn_XC
+template <typename BasisType>
+void compute_occupation_gradient(BasisType& basis,
+                                 const arma::mat& Hcore,
+                                 const arma::mat& C_AO,
+                                 const arma::vec& n,
+                                 double power,
+                                 arma::vec& gn_out);
+
 } // namespace rdmft
 } // namespace helfem
 

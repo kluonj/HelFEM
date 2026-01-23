@@ -41,59 +41,46 @@ public:
         arma::vec na = n.head(Na);
         arma::vec nb = n.tail(Nb);
         
+        // Use helper functions for self-consistent parts (Core + Hartree_self + XC)
+        double E_a = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power);
+        double E_b = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power);
+
+        // Add cross-term interaction (Hartree only): E_cross = Tr(Pa * Jb)
         arma::mat Pa = Ca * arma::diagmat(na) * Ca.t();
         arma::mat Pb = Cb * arma::diagmat(nb) * Cb.t();
-        arma::mat Ptot = Pa + Pb;
+        arma::mat Ja = basis.coulomb(Pa);
+        arma::mat Jb = basis.coulomb(Pb);
         
-        double E_core_a = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, Ca, na);
-        double E_core_b = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(Hcore, Cb, nb);
-        double E_core = E_core_a + E_core_b;
+        double E_cross = arma::trace(Pa * Jb);
+        accumulated_energy = E_a + E_b + E_cross;
 
-        arma::mat J_total = basis.coulomb(Ptot);
-        double E_J = 0.5 * arma::trace(Ptot * J_total);
+        // Gradients using helpers
+        arma::mat gCa, gCb;
+        helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power, gCa);
+        helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power, gCb);
 
-        double E_xc_a = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power);
-        double E_xc_b = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power);
-        double E_xc = E_xc_a + E_xc_b;
-
-        accumulated_energy = E_core + E_J + E_xc;
-
-        arma::mat gCa_core, gCa_J, gCa_xc;
-        arma::mat gCb_core, gCb_J, gCb_xc;
-
-        helfem::rdmft::core_orbital_gradient(Hcore, Ca, na, gCa_core);
-        helfem::rdmft::core_orbital_gradient(Hcore, Cb, nb, gCb_core);
-
-        gCa_J = 2.0 * J_total * Ca * arma::diagmat(na);
-        gCb_J = 2.0 * J_total * Cb * arma::diagmat(nb);
-
-        helfem::rdmft::xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gCa_xc);
-        helfem::rdmft::xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gCb_xc);
+        // Add Hartree cross-term gradients: d(E_cross)/dC
+        gCa += 2.0 * Jb * Ca * arma::diagmat(na);
+        gCb += 2.0 * Ja * Cb * arma::diagmat(nb);
 
         gC.set_size(arma::size(C));
-        gC.cols(0, Na-1) = gCa_core + gCa_J + gCa_xc;
-        gC.cols(Na, Na+Nb-1) = gCb_core + gCb_J + gCb_xc;
+        gC.cols(0, Na-1) = gCa;
+        gC.cols(Na, Na+Nb-1) = gCb;
 
-        arma::vec gna_xc, gnb_xc;
-        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_xc);
-        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_xc);
+        arma::vec gna, gnb;
+        helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Ca, na, power, gna);
+        helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Hcore, Cb, nb, power, gnb);
         
-        arma::vec gna_core, gnb_core;
-        helfem::rdmft::core_occupation_gradient(Hcore, Ca, na, gna_core);
-        helfem::rdmft::core_occupation_gradient(Hcore, Cb, nb, gnb_core);
-
-        arma::mat J_pa = basis.coulomb(Pa);
-        arma::mat J_pb = basis.coulomb(Pb);
-        arma::mat J_tot_a_no = Ca.t() * J_total * Ca;
-        arma::mat J_tot_b_no = Cb.t() * J_total * Cb;
-
-        // gn = core + Hartree + XC
-        arma::vec gn_a = gna_core + J_tot_a_no.diag() + gna_xc;
-        arma::vec gn_b = gnb_core + J_tot_b_no.diag() + gnb_xc;
+        // Add Hartree cross-term gradients: d(E_cross)/dn
+        arma::mat Jb_no_a = Ca.t() * Jb * Ca;
+        arma::mat Ja_no_b = Cb.t() * Ja * Cb;
+        
+        gna += Jb_no_a.diag();
+        gnb += Ja_no_b.diag();
 
         gn.set_size(Na + Nb);
-        gn.head(Na) = gn_a;
-        gn.tail(Nb) = gn_b;
+        gn.head(Na) = gna;
+        gn.tail(Nb) = gnb;
         
         return accumulated_energy;
     }
