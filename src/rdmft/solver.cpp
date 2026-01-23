@@ -101,7 +101,7 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         
         if (verbose_) {
            std::cout << "  " << std::setw(4) << iter << " | " 
-                     << std::scientific << std::setprecision(8) << std::setw(16) << E << " | " 
+                     << std::scientific << std::setprecision(10) << std::setw(16) << E << " | " 
                      << std::scientific << std::setprecision(4) << std::setw(12) << arma::norm(gn, "inf") << " | "
                      << std::scientific << std::setprecision(4) << std::setw(10) << mu_a << " | "
                      << std::scientific << std::setprecision(4) << std::setw(7) << rho << " | ";

@@ -61,8 +61,8 @@ private:
     int max_occ_iter_ = 20;
     int max_orb_iter_ = 20;
 
-    double occ_tol_ = 1e-8;
-    double orb_tol_ = 1e-8;
+    double occ_tol_ = 1e-10;
+    double orb_tol_ = 1e-10;
     bool verbose_ = true;
 
     bool do_optimize_occupations_ = true;

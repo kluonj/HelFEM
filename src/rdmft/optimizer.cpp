@@ -403,7 +403,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
 
         if (verbose_) {
             std::cout << "  " << std::setw(4) << iter << " | "
-                      << std::scientific << std::setprecision(8) << std::setw(16) << E
+                      << std::scientific << std::setprecision(10) << std::setw(16) << E
                       << " | " << std::scientific << std::setprecision(4) << std::setw(14) << grad_norm
                       << " | " << std::scientific << std::setprecision(4) << std::setw(10) << step
                       << " | ";
