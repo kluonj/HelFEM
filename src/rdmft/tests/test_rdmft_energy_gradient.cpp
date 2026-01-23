@@ -248,8 +248,18 @@ static int occ_gradient_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
   arma::mat C_AO = Ca.cols(0, Norb-1);
   arma::vec nocc(2*Norb); nocc.fill(0.8);
   const double power = 1.0;
-  arma::vec gn;
-  helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gn);
+  
+  arma::mat Hcore = basis.kinetic() + basis.nuclear();
+  arma::vec gn_core;
+  helfem::rdmft::core_occupation_gradient(Hcore, C_AO, nocc, gn_core);
+
+  arma::vec gn_xc;
+  helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, power, gn_xc);
+
+  arma::vec gn_hartree;
+  helfem::rdmft::hartree_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, C_AO, nocc, gn_hartree);
+
+  arma::vec gn = gn_core + gn_hartree + gn_xc;
   const double eps = 1e-6; double max_diff = 0.0;
   for(arma::uword i=0;i<nocc.n_elem;++i) {
     arma::vec nplus = nocc; arma::vec nminus = nocc;

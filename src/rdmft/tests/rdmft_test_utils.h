@@ -74,19 +74,22 @@ public:
         gC.cols(0, Na-1) = gCa_core + gCa_J + gCa_xc;
         gC.cols(Na, Na+Nb-1) = gCb_core + gCb_J + gCb_xc;
 
-        arma::vec gna_full, gnb_full;
-        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_full);
-        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_full);
+        arma::vec gna_xc, gnb_xc;
+        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Ca, na, power, gna_xc);
+        helfem::rdmft::xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(basis, Cb, nb, power, gnb_xc);
+        
+        arma::vec gna_core, gnb_core;
+        helfem::rdmft::core_occupation_gradient(Hcore, Ca, na, gna_core);
+        helfem::rdmft::core_occupation_gradient(Hcore, Cb, nb, gnb_core);
 
         arma::mat J_pa = basis.coulomb(Pa);
         arma::mat J_pb = basis.coulomb(Pb);
-        arma::mat J_pa_no = Ca.t() * J_pa * Ca;
-        arma::mat J_pb_no = Cb.t() * J_pb * Cb;
         arma::mat J_tot_a_no = Ca.t() * J_total * Ca;
         arma::mat J_tot_b_no = Cb.t() * J_total * Cb;
 
-        arma::vec gn_a = gna_full + (J_tot_a_no.diag() - J_pa_no.diag());
-        arma::vec gn_b = gnb_full + (J_tot_b_no.diag() - J_pb_no.diag());
+        // gn = core + Hartree + XC
+        arma::vec gn_a = gna_core + J_tot_a_no.diag() + gna_xc;
+        arma::vec gn_b = gnb_core + J_tot_b_no.diag() + gnb_xc;
 
         gn.set_size(Na + Nb);
         gn.head(Na) = gn_a;

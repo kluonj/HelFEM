@@ -206,14 +206,6 @@ void xc_occupation_gradient(BasisType& basis,
   arma::vec nb_eff = arma::clamp(nb, 0.0, 1.0);
 
   arma::mat Pa = C_AO * arma::diagmat(na_eff) * C_AO.t();
-  arma::mat Pb;
-  if(split_spin) Pb = C_AO * arma::diagmat(nb_eff) * C_AO.t();
-  arma::mat P_tot = split_spin ? (Pa + Pb) : Pa;
-
-  arma::mat J = basis.coulomb(P_tot);
-
-  arma::mat H_no = C_AO.t() * (basis.kinetic() + basis.nuclear()) * C_AO;
-  arma::mat J_no = C_AO.t() * J * C_AO;
 
   arma::mat Pa_pow = C_AO * arma::diagmat(arma::pow(arma::clamp(na_eff, occ_eps, 1.0), power)) * C_AO.t();
   arma::mat Ka = basis.exchange(Pa_pow);
@@ -228,9 +220,11 @@ void xc_occupation_gradient(BasisType& basis,
 
   gn_out.set_size(Nocc);
   auto compute_gn_spin = [&](arma::uword index, double n_val, const arma::mat& K_mat_no) -> double {
-    double val = H_no(index, index) + J_no(index, index);
     double n_eff = std::max(occ_eps, std::min(1.0, n_val));
-    val += 2.0 * (0.5) * power * std::pow(n_eff, power - 1.0) * K_mat_no(index, index);
+    // XC Gradient: - alpha * n^(alpha-1) * K_tilde_kk
+    // Note: K_mat_no is -K_tilde (because basis.exchange returns -K)
+    // So term is: + alpha * n^(alpha-1) * K_mat_no
+    double val = 2.0 * (0.5) * power * std::pow(n_eff, power - 1.0) * K_mat_no(index, index);
     return val;
   };
 
