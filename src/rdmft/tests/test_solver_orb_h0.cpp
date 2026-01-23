@@ -54,6 +54,7 @@ void optimize_orb_only_h0(helfem::atomic::basis::TwoDBasis& basis, const arma::m
     solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
     solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
     solver.set_orbital_lbfgs_history(8);
+    solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::DiagHessian);
 
     // Use dual-channel solve entrypoint
     solver.solve(C_tot, n_tot, double(Na), double(Nb), Na_orb);

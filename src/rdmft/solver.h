@@ -31,6 +31,7 @@ public:
     void set_orbital_optimizer(OrbitalOptimizer::Method m) { optimizer_.set_method(m); }
     void set_orbital_linesearch(OrbitalOptimizer::LineSearch ls) { optimizer_.set_line_search(ls); }
     void set_orbital_lbfgs_history(int m) { optimizer_.set_lbfgs_history(m); }
+    void set_orbital_preconditioner(OrbitalOptimizer::Preconditioner p) { optimizer_.set_preconditioner(p); }
 
     // Solve for ground state.
     // C: initial guess (and output) orbitals
