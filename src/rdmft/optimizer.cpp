@@ -227,7 +227,7 @@ double OrbitalOptimizer::zoom_strong_wolfe(const std::shared_ptr<EnergyFunctiona
     const double c1 = 1e-4;
     const double c2 = 0.9;
 
-    for (int iter = 0; iter < 20; ++iter) {
+    for (int iter = 0; iter < 10; ++iter) {
         double a = cubic_interpolate(a_lo, lo.E, mat_dot(lo.grad, dir),
                                      a_hi, hi.E, mat_dot(hi.grad, dir),
                                      std::min(a_lo, a_hi), std::max(a_lo, a_hi));

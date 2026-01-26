@@ -48,7 +48,7 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     solver.set_optimize_orbitals(true);    // OPTIMIZE ORBITALS
     // solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
     solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
-    solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::HagerZhang);
+    solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
     // solver.set_orbital_lbfgs_history(8);
     solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::None);
 
