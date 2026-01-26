@@ -21,8 +21,11 @@ public:
     // We will assume the user provides the functional for now, or we define a default one.
 
     void set_max_outer_iter(int n) { max_outer_iter_ = n; }
+    void set_max_orb_iter(int n) { max_orb_iter_ = n; }
+    void set_max_occ_iter(int n) { max_occ_iter_ = n; }
     void set_occ_tol(double t) { occ_tol_ = t; }
     void set_orb_tol(double t) { orb_tol_ = t; }
+    void set_orb_grad_tol(double t) { orb_grad_tol_ = t; }
     void set_verbose(bool v) { verbose_ = v; }
 
     void set_optimize_occupations(bool b) { do_optimize_occupations_ = b; }
@@ -63,6 +66,7 @@ private:
 
     double occ_tol_ = 1e-10;
     double orb_tol_ = 1e-10;
+    double orb_grad_tol_ = 5e-5;
     bool verbose_ = true;
 
     bool do_optimize_occupations_ = true;

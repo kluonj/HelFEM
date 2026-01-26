@@ -185,7 +185,7 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
 
 void Solver::optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb) {
     optimizer_.set_max_iter(max_orb_iter_);
-    optimizer_.set_tol(orb_tol_);
+    optimizer_.set_tol(orb_grad_tol_);
     optimizer_.set_verbose(verbose_);
     optimizer_.optimize(functional_, S_sqrt_, S_inv_sqrt_, C, n, n_alpha_orb);
 }
