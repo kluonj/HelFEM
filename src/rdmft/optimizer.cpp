@@ -411,19 +411,33 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
         double E_new = E;
         double step = 0.0;
 
-        if (line_search_ == LineSearch::StrongWolfe) {
-            step = line_search_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
-        } else if (line_search_ == LineSearch::MoreThuente) {
-            step = line_search_more_thuente(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
-        } else if (line_search_ == LineSearch::HagerZhang) {
-            step = line_search_hager_zhang(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
-        } else if (line_search_ == LineSearch::Bracketing) {
-            step = line_search_bracketing(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
-        } else if (line_search_ == LineSearch::Backtracking || line_search_ == LineSearch::Armijo) {
-            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
-        } else {
-            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, X_new, C_new, grad_new, E_new);
+        // Adaptive step size guess
+        double alpha_guess = 1.0;
+        if (iter == 1) {
+             alpha_guess = 0.2; // Conservative start
+        } else if (step_size_ > 0.0) {
+             alpha_guess = step_size_ * 2.0; 
         }
+        
+        if (alpha_guess < 1e-8) alpha_guess = 1e-4;
+        if (alpha_guess > 10.0) alpha_guess = 1.0;
+
+        if (line_search_ == LineSearch::StrongWolfe) {
+            step = line_search_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        } else if (line_search_ == LineSearch::MoreThuente) {
+            step = line_search_more_thuente(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        } else if (line_search_ == LineSearch::HagerZhang) {
+            step = line_search_hager_zhang(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        } else if (line_search_ == LineSearch::Bracketing) {
+            step = line_search_bracketing(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        } else if (line_search_ == LineSearch::Backtracking || line_search_ == LineSearch::Armijo) {
+            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        } else {
+            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+        }
+
+        step_size_ = step; // Store for history
+
 
         if (verbose_) {
             std::cout << "  " << std::setw(4) << iter << " | "
@@ -467,11 +481,12 @@ double OrbitalOptimizer::line_search_armijo(const std::shared_ptr<EnergyFunction
                                             int n_alpha_orb,
                                             double E0,
                                             double dphi0,
+                                            double initial_alpha,
                                             arma::mat& X_out,
                                             arma::mat& C_out,
                                             arma::mat& grad_out,
                                             double& E_out) const {
-    double alpha = 1.0;
+    double alpha = initial_alpha;
     const double rho = 0.5;
     const double c1 = 1e-4;
 
@@ -498,13 +513,14 @@ double OrbitalOptimizer::line_search_bracketing(const std::shared_ptr<EnergyFunc
                                                 int n_alpha_orb,
                                                 double E0,
                                                 double dphi0,
+                                                double initial_alpha,
                                                 arma::mat& X_out,
                                                 arma::mat& C_out,
                                                 arma::mat& grad_out,
                                                 double& E_out) const {
     const double c1 = 1e-4;
     const double max_alpha = 10.0;
-    double alpha = 1.0;
+    double alpha = initial_alpha;
 
     EvalResult prev = evaluate_point(functional, X, dir, 0.0, n, S_inv_sqrt, n_alpha_orb);
     for (int i = 0; i < 20; ++i) {
@@ -540,6 +556,7 @@ double OrbitalOptimizer::line_search_strong_wolfe(const std::shared_ptr<EnergyFu
                                                   int n_alpha_orb,
                                                   double E0,
                                                   double dphi0,
+                                                  double initial_alpha,
                                                   arma::mat& X_out,
                                                   arma::mat& C_out,
                                                   arma::mat& grad_out,
@@ -551,7 +568,7 @@ double OrbitalOptimizer::line_search_strong_wolfe(const std::shared_ptr<EnergyFu
     double alpha_prev = 0.0;
     EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
 
-    double alpha = 1.0;
+    double alpha = initial_alpha;
 
     for (int i = 0; i < 20; ++i) {
         EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
@@ -593,6 +610,7 @@ double OrbitalOptimizer::line_search_more_thuente(const std::shared_ptr<EnergyFu
                                                   int n_alpha_orb,
                                                   double E0,
                                                   double dphi0,
+                                                  double initial_alpha,
                                                   arma::mat& X_out,
                                                   arma::mat& C_out,
                                                   arma::mat& grad_out,
@@ -604,7 +622,7 @@ double OrbitalOptimizer::line_search_more_thuente(const std::shared_ptr<EnergyFu
     double alpha_prev = 0.0;
     EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
 
-    double alpha = 1.0;
+    double alpha = initial_alpha;
 
     for (int i = 0; i < 25; ++i) {
         EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
@@ -646,6 +664,7 @@ double OrbitalOptimizer::line_search_hager_zhang(const std::shared_ptr<EnergyFun
                                                  int n_alpha_orb,
                                                  double E0,
                                                  double dphi0,
+                                                 double initial_alpha,
                                                  arma::mat& X_out,
                                                  arma::mat& C_out,
                                                  arma::mat& grad_out,
@@ -657,7 +676,7 @@ double OrbitalOptimizer::line_search_hager_zhang(const std::shared_ptr<EnergyFun
 
     double alpha_prev = 0.0;
     EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
-    double alpha = 1.0;
+    double alpha = initial_alpha;
 
     for (int i = 0; i < 25; ++i) {
         EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);

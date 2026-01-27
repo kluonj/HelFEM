@@ -72,6 +72,7 @@ private:
     int max_iter_ = 20;
     double tol_ = 1e-6;
     bool verbose_ = true;
+    double step_size_ = 1.0;
 
     std::vector<LbfgsPair> history_;
 
@@ -133,6 +134,7 @@ private:
                               int n_alpha_orb,
                               double E0,
                               double dphi0,
+                              double initial_alpha,
                               arma::mat& X_out,
                               arma::mat& C_out,
                               arma::mat& grad_out,
@@ -146,6 +148,7 @@ private:
                                   int n_alpha_orb,
                                   double E0,
                                   double dphi0,
+                                  double initial_alpha,
                                   arma::mat& X_out,
                                   arma::mat& C_out,
                                   arma::mat& grad_out,
@@ -159,6 +162,7 @@ private:
                                     int n_alpha_orb,
                                     double E0,
                                     double dphi0,
+                                    double initial_alpha,
                                     arma::mat& X_out,
                                     arma::mat& C_out,
                                     arma::mat& grad_out,
@@ -172,6 +176,7 @@ private:
                                     int n_alpha_orb,
                                     double E0,
                                     double dphi0,
+                                    double initial_alpha,
                                     arma::mat& X_out,
                                     arma::mat& C_out,
                                     arma::mat& grad_out,
@@ -185,6 +190,7 @@ private:
                                    int n_alpha_orb,
                                    double E0,
                                    double dphi0,
+                                   double initial_alpha,
                                    arma::mat& X_out,
                                    arma::mat& C_out,
                                    arma::mat& grad_out,
