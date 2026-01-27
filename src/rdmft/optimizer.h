@@ -33,6 +33,11 @@ public:
         DiagHessian
     };
 
+    enum class Retraction {
+        QR,
+        Polar
+    };
+
     OrbitalOptimizer() = default;
 
     void set_method(Method m) { method_ = m; }
@@ -42,6 +47,7 @@ public:
     void set_tol(double t) { tol_ = t; }
     void set_verbose(bool v) { verbose_ = v; }
     void set_preconditioner(Preconditioner p) { preconditioner_ = p; }
+    void set_retraction(Retraction r) { retraction_ = r; }
 
     void optimize(const std::shared_ptr<EnergyFunctional<void>>& functional,
                   const arma::mat& S_sqrt,
@@ -61,6 +67,7 @@ private:
     Method method_ = Method::CG;
     LineSearch line_search_ = LineSearch::Armijo;
     Preconditioner preconditioner_ = Preconditioner::None;
+    Retraction retraction_ = Retraction::Polar;
     int lbfgs_history_ = 6;
     int max_iter_ = 20;
     double tol_ = 1e-6;

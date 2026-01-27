@@ -83,32 +83,44 @@ arma::mat OrbitalOptimizer::calc_riem_grad(const arma::mat& X, const arma::mat& 
 }
 
 arma::mat OrbitalOptimizer::retract(const arma::mat& X_trial, int n_alpha_orb) const {
-    arma::mat X_out;
+    arma::mat X_out = X_trial;
+
+    auto retract_block = [&](arma::mat& X_block) {
+        if (retraction_ == Retraction::QR) {
+             arma::mat Q, R;
+             if(arma::qr(Q, R, X_block)) {
+                 arma::uword min_dim = std::min(R.n_rows, R.n_cols);
+                 for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
+                 X_block = Q.cols(0, X_block.n_cols - 1);
+             }
+        } else {
+            // Polar
+            arma::mat U, V;
+            arma::vec s;
+            if (arma::svd_econ(U, s, V, X_block)) {
+                X_block = U * V.t();
+            } else {
+                 // Fallback to QR
+                 arma::mat Q, R;
+                 if(arma::qr(Q, R, X_block)) {
+                     arma::uword min_dim = std::min(R.n_rows, R.n_cols);
+                     for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
+                     X_block = Q.cols(0, X_block.n_cols - 1);
+                 }
+            }
+        }
+    };
 
     if (n_alpha_orb > 0 && X_trial.n_cols > (arma::uword)n_alpha_orb) {
-        X_out = X_trial;
+        arma::mat Xa = X_trial.cols(0, n_alpha_orb - 1);
+        retract_block(Xa);
+        X_out.cols(0, n_alpha_orb - 1) = Xa;
 
-        arma::mat Xta = X_trial.cols(0, n_alpha_orb - 1);
-        arma::mat Qa, Ra;
-        if (arma::qr(Qa, Ra, Xta)) {
-            arma::uword min_dim = std::min(Ra.n_rows, Ra.n_cols);
-            for (arma::uword k = 0; k < min_dim; ++k) if (Ra(k, k) < 0) Qa.col(k) *= -1.0;
-            X_out.cols(0, n_alpha_orb - 1) = Qa.cols(0, Xta.n_cols - 1);
-        }
-
-        arma::mat Xtb = X_trial.cols(n_alpha_orb, X_trial.n_cols - 1);
-        arma::mat Qb, Rb;
-        if (arma::qr(Qb, Rb, Xtb)) {
-            arma::uword min_dim = std::min(Rb.n_rows, Rb.n_cols);
-            for (arma::uword k = 0; k < min_dim; ++k) if (Rb(k, k) < 0) Qb.col(k) *= -1.0;
-            X_out.cols(n_alpha_orb, X_trial.n_cols - 1) = Qb.cols(0, Xtb.n_cols - 1);
-        }
+        arma::mat Xb = X_trial.cols(n_alpha_orb, X_trial.n_cols - 1);
+        retract_block(Xb);
+        X_out.cols(n_alpha_orb, X_trial.n_cols - 1) = Xb;
     } else {
-        arma::mat Q, R;
-        if (!arma::qr(Q, R, X_trial)) return X_trial;
-        arma::uword min_dim = std::min(R.n_rows, R.n_cols);
-        for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
-        X_out = Q.cols(0, X_trial.n_cols - 1);
+        retract_block(X_out);
     }
 
     return X_out;
@@ -339,8 +351,8 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
 
     if (verbose_) {
         std::cout << "\n  --- Orbital Optimization ---\n";
-        std::cout << "  Iter |      Energy      | Riem Grad Norm |  Step Size | Method\n";
-        std::cout << "-------|------------------|----------------|------------|--------\n";
+        std::cout << "  Iter |      Energy      | Riem Grad Norm | Fidel. Err |  Step Size | Method\n";
+        std::cout << "-------|------------------|----------------|------------|------------|--------\n";
     }
 
     arma::mat grad_prev = grad;
@@ -349,6 +361,18 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
 
     for (int iter = 1; iter < max_iter_; ++iter) {
         double grad_norm = arma::norm(grad, "fro");
+        
+        double fid_err = 0.0;
+        if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
+             arma::mat Xa = X.cols(0, n_alpha_orb - 1);
+             arma::mat Xb = X.cols(n_alpha_orb, X.n_cols - 1);
+             double err_a = arma::norm(Xa.t() * Xa - arma::eye(Xa.n_cols, Xa.n_cols), "inf");
+             double err_b = arma::norm(Xb.t() * Xb - arma::eye(Xb.n_cols, Xb.n_cols), "inf");
+             fid_err = std::max(err_a, err_b);
+        } else {
+             fid_err = arma::norm(X.t() * X - arma::eye(X.n_cols, X.n_cols), "inf");
+        }
+
         if (grad_norm < tol_) break;
 
         z = apply_preconditioner(X, grad);
@@ -405,6 +429,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
             std::cout << "  " << std::setw(4) << iter << " | "
                       << std::scientific << std::setprecision(10) << std::setw(16) << E
                       << " | " << std::scientific << std::setprecision(4) << std::setw(14) << grad_norm
+                      << " | " << std::scientific << std::setprecision(4) << std::setw(10) << fid_err
                       << " | " << std::scientific << std::setprecision(4) << std::setw(10) << step
                       << " | ";
 
