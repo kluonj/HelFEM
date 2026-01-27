@@ -31,7 +31,8 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
         int Na_orb = Ca.n_cols;
         int Nb_orb = Cb.n_cols;
 
-        auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
+        double power = 1.0; // RDMFT with p=0.5 is Muller
+        auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb, power);
         Solver solver(func, S);
 
         arma::mat C_tot(Ca.n_rows, Na_orb + Nb_orb);

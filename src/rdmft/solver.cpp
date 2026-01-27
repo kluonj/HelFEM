@@ -144,10 +144,16 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         // Backtracking
         double E_new = 0.0;
         int linesearch_steps = 0;
-        while(linesearch_steps < 5) {
+        bool step_accepted = false;
+        int max_ls = 20;
+
+        while(linesearch_steps < max_ls) {
              arma::mat gC_dummy; arma::vec gn_dummy;
              E_new = functional_->energy(C, n_new, gC_dummy, gn_dummy);
-             if (E_new < E + 1e-10) break; // Accept step
+             if (E_new < E + 1e-8) { // Relaxed slightly to avoid numerical noise
+                 step_accepted = true;
+                 break; // Accept step
+             }
              
              step *= 0.5;
              n_new = n - step * gn;
@@ -166,6 +172,11 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
              }
              
              linesearch_steps++;
+        }
+        
+        if (!step_accepted) {
+            if (verbose_) std::cout << "  [Occ] Line search failed to find lower energy. Stopping.\n";
+            break;
         }
         
         double diff_n = arma::norm(n_new - n, "inf");

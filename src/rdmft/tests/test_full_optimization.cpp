@@ -24,7 +24,7 @@ void optimize_full(helfem::atomic::basis::TwoDBasis& basis, const arma::mat& S, 
     int Na_orb = Ca.n_cols;
     int Nb_orb = Cb.n_cols;
 
-    double power = 1.0; // HF-like
+    double power = 0.5; // Muller functional, for 1.0 it's HF-like
     auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb, power);
     Solver solver(func, S);
 
