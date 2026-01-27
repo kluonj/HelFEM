@@ -47,8 +47,8 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     solver.set_max_orb_iter(50);
     solver.set_optimize_occupations(false); // FIXED OCCUPATIONS
     solver.set_optimize_orbitals(true);    // OPTIMIZE ORBITALS
-    // solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
-    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
+    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
+    // solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
     solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
     // solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::Armijo);
     // solver.set_orbital_lbfgs_history(8);

@@ -223,7 +223,7 @@ static int hf_component_check(Checkpoint &chk, helfem::atomic::basis::TwoDBasis 
     C_AO.print("C_AO check:");
     E_core_r = helfem::rdmft::core_energy<helfem::atomic::basis::TwoDBasis>(H0, C_AO, n_final);
     E_J_r = helfem::rdmft::hartree_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, n_final);
-    E_xc_r = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, n_final, 1.0);
+    E_xc_r = helfem::rdmft::xc_energy<helfem::atomic::basis::TwoDBasis>(basis, C_AO, n_final, helfem::rdmft::XCFunctionalType::Power, 1.0);
   }
   double Enucr2=0.0; if(chk.exist("Enucr")) chk.read("Enucr", Enucr2);
   double Eef2=0.0; if(chk.exist("Eefield")) chk.read("Eefield", Eef2);

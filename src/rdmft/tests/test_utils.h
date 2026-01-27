@@ -24,20 +24,21 @@ public:
     double accumulated_energy;
     double power;
     int n_alpha_orb;
+    XCFunctionalType xc_type;
 
-    TestRDMFTFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb, double p=1.0) 
-        : basis(b), Hcore(H0), accumulated_energy(0.0), power(p), n_alpha_orb(na_orb) {}
+    TestRDMFTFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb, double p=1.0, XCFunctionalType type = XCFunctionalType::Power) 
+        : basis(b), Hcore(H0), accumulated_energy(0.0), power(p), n_alpha_orb(na_orb), xc_type(type) {}
 
     double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
         // Use unified helper functions which handle n_alpha_orb splitting and cross-terms
         accumulated_energy = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(
-            basis, Hcore, C, n, power, n_alpha_orb);
+            basis, Hcore, C, n, power, n_alpha_orb, xc_type);
 
         helfem::rdmft::compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(
-            basis, Hcore, C, n, power, gC, n_alpha_orb);
+            basis, Hcore, C, n, power, gC, n_alpha_orb, xc_type);
 
         helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(
-            basis, Hcore, C, n, power, gn, n_alpha_orb);
+            basis, Hcore, C, n, power, gn, n_alpha_orb, xc_type);
         
         return accumulated_energy;
     }

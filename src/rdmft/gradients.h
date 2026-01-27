@@ -5,6 +5,7 @@
 #define GRADIENTS_H
 
 #include <armadillo>
+#include "xc.h"
 
 namespace helfem {
 namespace rdmft {
@@ -46,22 +47,10 @@ void hartree_occupation_gradient(BasisType& basis,
                                        arma::vec& gn_out);
 
 // XC orbital gradient (Müller/power)
-template <typename BasisType>
-void xc_orbital_gradient(BasisType& basis,
-                                       const arma::mat& C_AO,
-                                       const arma::vec& n,
-                                       double power,
-                                       arma::mat& gC_out,
-                                       int n_alpha = 0);
+// (Defined in xc.h)
 
 // XC occupation gradient
-template <typename BasisType>
-void xc_occupation_gradient(BasisType& basis,
-                                      const arma::mat& C_AO,
-                                      const arma::vec& n,
-                                      double power,
-                                      arma::vec& gn_out,
-                                      int n_alpha = 0);
+// (Defined in xc.h)
 
 // Compute total orbital gradient: gC_core + gC_Hartree + gC_XC
 template <typename BasisType>
@@ -71,7 +60,8 @@ void compute_orbital_gradient(BasisType& basis,
                               const arma::vec& n,
                               double power,
                               arma::mat& gC_out,
-                              int n_alpha = 0);
+                              int n_alpha = 0,
+                              XCFunctionalType type = XCFunctionalType::Power);
 
 // Compute total occupation gradient: gn_core + gn_Hartree + gn_XC
 template <typename BasisType>
@@ -81,7 +71,8 @@ void compute_occupation_gradient(BasisType& basis,
                                  const arma::vec& n,
                                  double power,
                                  arma::vec& gn_out,
-                                 int n_alpha = 0);
+                                 int n_alpha = 0,
+                                 XCFunctionalType type = XCFunctionalType::Power);
 
 } // namespace rdmft
 } // namespace helfem

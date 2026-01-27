@@ -1,4 +1,5 @@
 #include "gradients.h"
+#include "xc.h"
 #include "../atomic/TwoDBasis.h"
 #include <stdexcept>
 #include <algorithm>
@@ -142,179 +143,43 @@ void hartree_occupation_gradient(BasisType& basis,
 }
 
 template <typename BasisType>
-void xc_orbital_gradient(BasisType& basis,
-                                       const arma::mat& C_AO,
-                                       const arma::vec& n,
-                                       double power,
-                                       arma::mat& gC_out,
-                                       int n_alpha) {
-  if(C_AO.n_cols == 0) { gC_out.reset(); return; }
-  
-  // Unrestricted case with C containing [Ca, Cb]
-  if (n_alpha > 0) {
-      int n_beta = C_AO.n_cols - n_alpha;
-      if (n.n_elem != C_AO.n_cols) throw std::logic_error("xc_orbital_gradient: occupation vector size mismatch for n_alpha > 0");
-      
-      arma::mat Ca = C_AO.head_cols(n_alpha);
-      arma::mat Cb = C_AO.tail_cols(n_beta);
-      arma::vec na = n.head(n_alpha);
-      arma::vec nb = n.tail(n_beta);
-
-      arma::mat gCa, gCb;
-      xc_orbital_gradient(basis, Ca, na, power, gCa, 0);
-      xc_orbital_gradient(basis, Cb, nb, power, gCb, 0);
-
-      gC_out = arma::join_horiz(gCa, gCb);
-      return;
-  }
-
-  arma::uword Norb = C_AO.n_cols;
-  arma::vec na, nb;
-  bool split_spin = false;
-  if (n.n_elem == 2 * Norb) {
-    split_spin = true;
-    na = n.head(Norb);
-    nb = n.tail(Norb);
-  } else if (n.n_elem == Norb) {
-    na = n;
-    nb.zeros(Norb);
-  } else {
-    throw std::logic_error("xc_orbital_gradient: occupation vector size mismatch");
-  }
-
-  const double occ_eps = 1e-14;
-  arma::vec na_eff = arma::clamp(na, 0.0, 1.0);
-  arma::vec nb_eff = arma::clamp(nb, 0.0, 1.0);
-  arma::vec pow_na = arma::pow(arma::clamp(na_eff, occ_eps, 1.0), power);
-  arma::vec pow_nb = split_spin ? arma::pow(arma::clamp(nb_eff, occ_eps, 1.0), power) : arma::vec();
-
-  arma::mat Pa_pow = C_AO * arma::diagmat(pow_na) * C_AO.t();
-  arma::mat Ka = basis.exchange(Pa_pow);
-  double xc_prefactor = 0.5;
-  arma::mat gC_xc = 4.0 * xc_prefactor * Ka * C_AO * arma::diagmat(pow_na);
-  if(split_spin) {
-    arma::mat Pb_pow = C_AO * arma::diagmat(pow_nb) * C_AO.t();
-    arma::mat Kb = basis.exchange(Pb_pow);
-    gC_xc += 4.0 * xc_prefactor * Kb * C_AO * arma::diagmat(pow_nb);
-  }
-  gC_out = gC_xc;
-}
-
-template <typename BasisType>
-void xc_occupation_gradient(BasisType& basis,
-                                      const arma::mat& C_AO,
-                                      const arma::vec& n,
-                                      double power,
-                                      arma::vec& gn_out,
-                                      int n_alpha) {
-  arma::uword Norb = C_AO.n_cols;
-  arma::uword Nocc = n.n_elem;
-  if (Norb == 0) { gn_out.reset(); return; }
-
-  // Unrestricted case with C containing [Ca, Cb]
-  if (n_alpha > 0) {
-      int n_beta = C_AO.n_cols - n_alpha;
-      if (Nocc != C_AO.n_cols) throw std::logic_error("xc_occupation_gradient: occupation vector size mismatch for n_alpha > 0");
-      
-      arma::mat Ca = C_AO.head_cols(n_alpha);
-      arma::mat Cb = C_AO.tail_cols(n_beta);
-      arma::vec na = n.head(n_alpha);
-      arma::vec nb = n.tail(n_beta);
-
-      arma::vec gna, gnb;
-      xc_occupation_gradient(basis, Ca, na, power, gna, 0);
-      xc_occupation_gradient(basis, Cb, nb, power, gnb, 0);
-
-      gn_out = arma::join_cols(gna, gnb);
-      return;
-  }
-
-  arma::vec na, nb;
-  bool split_spin = false;
-  if (Nocc == 2 * Norb) {
-    split_spin = true;
-    na = n.head(Norb);
-    nb = n.tail(Norb);
-  } else if (Nocc == Norb) {
-    na = n;
-    nb.zeros(Norb);
-  } else {
-    throw std::logic_error("xc_occupation_gradient: occupation vector size mismatch");
-  }
-
-  const double occ_eps = 1e-14;
-  arma::vec na_eff = arma::clamp(na, 0.0, 1.0);
-  arma::vec nb_eff = arma::clamp(nb, 0.0, 1.0);
-
-  arma::mat Pa = C_AO * arma::diagmat(na_eff) * C_AO.t();
-
-  arma::mat Pa_pow = C_AO * arma::diagmat(arma::pow(arma::clamp(na_eff, occ_eps, 1.0), power)) * C_AO.t();
-  arma::mat Ka = basis.exchange(Pa_pow);
-  arma::mat Ka_no = C_AO.t() * Ka * C_AO;
-
-  arma::mat Kb_no;
-  if(split_spin) {
-    arma::mat Pb_pow = C_AO * arma::diagmat(arma::pow(arma::clamp(nb_eff, occ_eps, 1.0), power)) * C_AO.t();
-    arma::mat Kb = basis.exchange(Pb_pow);
-    Kb_no = C_AO.t() * Kb * C_AO;
-  }
-
-  gn_out.set_size(Nocc);
-  auto compute_gn_spin = [&](arma::uword index, double n_val, const arma::mat& K_mat_no) -> double {
-    double n_eff = std::max(occ_eps, std::min(1.0, n_val));
-    // XC Gradient: - alpha * n^(alpha-1) * K_tilde_kk
-    // Note: K_mat_no is -K_tilde (because basis.exchange returns -K)
-    // So term is: + alpha * n^(alpha-1) * K_mat_no
-    double val = 2.0 * (0.5) * power * std::pow(n_eff, power - 1.0) * K_mat_no(index, index);
-    return val;
-  };
-
-  for(arma::uword i=0; i<Norb; ++i) {
-    gn_out(i) = compute_gn_spin(i, na_eff(i), Ka_no);
-  }
-  if(split_spin) {
-    for(arma::uword i=0; i<Norb; ++i) {
-      gn_out(Norb + i) = compute_gn_spin(i, nb_eff(i), Kb_no);
-    }
-  }
-}
-
-template <typename BasisType>
 void compute_orbital_gradient(BasisType& basis,
-                              const arma::mat& Hcore,
+                              const arma::mat& H_core,
                               const arma::mat& C_AO,
                               const arma::vec& n,
                               double power,
                               arma::mat& gC_out,
-                              int n_alpha) {
+                              int n_alpha,
+                              XCFunctionalType xc_type) {
     arma::mat gC_core;
-    core_orbital_gradient(Hcore, C_AO, n, gC_core);
+    core_orbital_gradient(H_core, C_AO, n, gC_core);
     
     arma::mat gC_hartree;
     hartree_orbital_gradient(basis, C_AO, n, gC_hartree);
     
     arma::mat gC_xc;
-    xc_orbital_gradient(basis, C_AO, n, power, gC_xc, n_alpha);
+    xc_orbital_gradient(basis, C_AO, n, xc_type, power, gC_xc, n_alpha);
     
     gC_out = gC_core + gC_hartree + gC_xc;
 }
 
 template <typename BasisType>
 void compute_occupation_gradient(BasisType& basis,
-                                 const arma::mat& Hcore,
+                                 const arma::mat& H_core,
                                  const arma::mat& C_AO,
                                  const arma::vec& n,
                                  double power,
                                  arma::vec& gn_out,
-                                 int n_alpha) {
+                                 int n_alpha,
+                                 XCFunctionalType xc_type) {
     arma::vec gn_core;
-    core_occupation_gradient(Hcore, C_AO, n, gn_core);
+    core_occupation_gradient(H_core, C_AO, n, gn_core);
     
     arma::vec gn_hartree;
     hartree_occupation_gradient(basis, C_AO, n, gn_hartree);
     
     arma::vec gn_xc;
-    xc_occupation_gradient(basis, C_AO, n, power, gn_xc, n_alpha);
+    xc_occupation_gradient(basis, C_AO, n, xc_type, power, gn_xc, n_alpha);
     
     gn_out = gn_core + gn_hartree + gn_xc;
 }
@@ -322,10 +187,11 @@ void compute_occupation_gradient(BasisType& basis,
 // Explicit instantiations
 template void hartree_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::mat&);
 template void hartree_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::vec&);
-template void xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::mat&, int);
-template void xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, double, arma::vec&, int);
-template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, int);
-template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&, int);
+
+// xc_... explicit instantiations moved to xc.cpp
+
+template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, int, XCFunctionalType);
+template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&, int, XCFunctionalType);
 
 } // namespace rdmft
 } // namespace helfem

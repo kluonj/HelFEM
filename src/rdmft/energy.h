@@ -5,6 +5,7 @@
 #define ENERGY_H
 
 #include <armadillo>
+#include "xc.h" // Include the XC definition
 
 namespace helfem {
 namespace rdmft {
@@ -36,13 +37,9 @@ double hartree_energy(BasisType& basis,
                       const arma::mat& C_AO,
                       const arma::vec& n);
 
-// Müller/power XC energy helper
-template <typename BasisType>
-double xc_energy(BasisType& basis,
-                 const arma::mat& C_AO,
-                 const arma::vec& n,
-                 double power,
-                 int n_alpha = 0);
+// XC energy helper
+// (Defined in xc.h)
+
 
 // Compute total energy: E_core + E_Hartree + E_XC
 template <typename BasisType>
@@ -51,7 +48,8 @@ double compute_energy(BasisType& basis,
                       const arma::mat& C_AO,
                       const arma::vec& n,
                       double power,
-                      int n_alpha = 0);
+                      int n_alpha = 0,
+                      XCFunctionalType type = XCFunctionalType::Power);
 
 } // namespace rdmft
 } // namespace helfem

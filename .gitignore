@@ -5,6 +5,7 @@ LibXcConfig.cmake
 *~
 
 build/
+install/
 helfem.chk
 *.log
 nap_rdmft/

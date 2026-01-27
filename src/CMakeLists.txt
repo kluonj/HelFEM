@@ -15,8 +15,12 @@ rdmft/solver.cpp
 rdmft/energy.cpp
 rdmft/gradients.cpp
 rdmft/optimizer.cpp
+rdmft/xc.cpp
 )
-target_link_libraries(helfem-common PUBLIC helfem)
+
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+target_link_libraries(helfem-common PUBLIC helfem ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 target_include_directories(helfem-common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../libhelfem/src/")
 target_include_directories(helfem-common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -92,6 +96,10 @@ target_link_libraries(test_solver_orb_h0 helfem-common legendre)
 
 add_executable(test_full_optimization rdmft/tests/test_full_optimization.cpp)
 target_link_libraries(test_full_optimization helfem-common legendre)
+
+add_executable(test_xc_features rdmft/tests/test_xc_features.cpp)
+target_link_libraries(test_xc_features helfem-common legendre)
+
 
 
 
