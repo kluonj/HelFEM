@@ -1,5 +1,6 @@
 #include "energy.h"
 #include "../atomic/TwoDBasis.h"
+#include "../diatomic/basis.h"
 #include <stdexcept>
 
 namespace helfem {
@@ -60,6 +61,11 @@ template double core_energy<helfem::atomic::basis::TwoDBasis>(const arma::mat&, 
 template double hartree_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&);
 // xc_energy is instantiated in xc.cpp
 template double compute_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, int, XCFunctionalType);
+
+// Diatomic instantiations
+template double core_energy<helfem::diatomic::basis::TwoDBasis>(const arma::mat&, const arma::mat&, const arma::vec&);
+template double hartree_energy<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&);
+template double compute_energy<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, int, XCFunctionalType);
 
 } // namespace rdmft
 } // namespace helfem

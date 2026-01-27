@@ -1,5 +1,6 @@
 #include "xc.h"
 #include "../atomic/TwoDBasis.h" // Needed for explicit instantiation
+#include "../diatomic/basis.h"
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
@@ -295,6 +296,11 @@ void xc_occupation_gradient(BasisType& basis,
 template double xc_energy<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, int);
 template void xc_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, arma::mat&, int);
 template void xc_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, arma::vec&, int);
+
+// Diatomic instantiations
+template double xc_energy<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, int);
+template void xc_orbital_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, arma::mat&, int);
+template void xc_occupation_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, XCFunctionalType, double, arma::vec&, int);
 
 } // namespace rdmft
 } // namespace helfem

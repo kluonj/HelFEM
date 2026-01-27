@@ -1,6 +1,7 @@
 #include "gradients.h"
 #include "xc.h"
 #include "../atomic/TwoDBasis.h"
+#include "../diatomic/basis.h"
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
@@ -192,6 +193,13 @@ template void hartree_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helf
 
 template void compute_orbital_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, int, XCFunctionalType);
 template void compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(helfem::atomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&, int, XCFunctionalType);
+
+// Diatomic instantiations
+template void hartree_orbital_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::mat&);
+template void hartree_occupation_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::vec&, arma::vec&);
+
+template void compute_orbital_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::mat&, int, XCFunctionalType);
+template void compute_occupation_gradient<helfem::diatomic::basis::TwoDBasis>(helfem::diatomic::basis::TwoDBasis&, const arma::mat&, const arma::mat&, const arma::vec&, double, arma::vec&, int, XCFunctionalType);
 
 } // namespace rdmft
 } // namespace helfem

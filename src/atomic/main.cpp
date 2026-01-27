@@ -21,11 +21,41 @@
 #include "../general/elements.h"
 #include "../general/timer.h"
 #include "../general/scf_helpers.h"
+#include "../rdmft/solver.h"
+#include "../rdmft/energy.h"
+#include "../rdmft/gradients.h"
+#include "../rdmft/xc.h"
 #include "basis.h"
 #include "dftgrid.h"
 #include <cfloat>
 
 using namespace helfem;
+
+// RDMFT Functional Wrapper
+template <typename BasisType>
+class AtomicRDMFTFunctional : public helfem::rdmft::EnergyFunctional<void> {
+public:
+    AtomicRDMFTFunctional(BasisType& basis, const arma::mat& Hcore, double power, int n_alpha_orb, helfem::rdmft::XCFunctionalType type)
+        : basis_(basis), Hcore_(Hcore), power_(power), n_alpha_orb_(n_alpha_orb), type_(type) {
+            printf("DEBUG: AtomicRDMFTFunctional ctor. basis addr: %p, primitive TEI size: %zu\n", &basis_, basis_.get_prim_tei().size());
+        }
+
+    double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
+        // Compute Gradients
+        helfem::rdmft::compute_orbital_gradient(basis_, Hcore_, C, n, power_, gC, n_alpha_orb_, type_);
+        helfem::rdmft::compute_occupation_gradient(basis_, Hcore_, C, n, power_, gn, n_alpha_orb_, type_);
+        
+        // Compute Energy
+        return helfem::rdmft::compute_energy(basis_, Hcore_, C, n, power_, n_alpha_orb_, type_);
+    }
+
+private:
+    BasisType& basis_;
+    const arma::mat& Hcore_;
+    double power_;
+    int n_alpha_orb_;
+    helfem::rdmft::XCFunctionalType type_;
+};
 
 void classify_orbitals(const arma::mat & C, const arma::ivec & lvals, const arma::ivec & mvals, const std::vector<arma::uvec> & lmidx) {
   for(size_t io=0;io<C.n_cols;io++) {
@@ -345,13 +375,19 @@ int main(int argc, char **argv) {
   }
 
   // Functional
-  int x_func, c_func;
-  ::parse_xc_func(x_func, c_func, method);
-  ::print_info(x_func, c_func);
-  if(!is_supported(x_func))
-    throw std::logic_error("The specified exchange functional is not currently supported in HelFEM.\n");
-  if(!is_supported(c_func))
-    throw std::logic_error("The specified correlation functional is not currently supported in HelFEM.\n");
+  int x_func = 0, c_func = 0;
+  bool use_rdmft_check = (method == "Muller" || method == "Power" || method == "GU" || method.find("RDMFT") != std::string::npos);
+  
+  if (use_rdmft_check) {
+      printf("RDMFT functional selected: %s. Skipping LibXC check.\n", method.c_str());
+  } else {
+      ::parse_xc_func(x_func, c_func, method);
+      ::print_info(x_func, c_func);
+      if(!is_supported(x_func))
+        throw std::logic_error("The specified exchange functional is not currently supported in HelFEM.\n");
+      if(!is_supported(c_func))
+        throw std::logic_error("The specified correlation functional is not currently supported in HelFEM.\n");
+  }
 
   bool dft=(x_func>0 || c_func>0);
 
@@ -705,7 +741,9 @@ int main(int argc, char **argv) {
   printf("Computing two-electron integrals\n");
   fflush(stdout);
   timer.set();
-  basis.compute_tei(kfrac!=0.0);
+  
+  // Force exchange integrals for RDMFT
+  basis.compute_tei(kfrac!=0.0 || use_rdmft_check);
   if(yukawa)
     basis.compute_yukawa(omega);
   else if(erfc)
@@ -718,6 +756,74 @@ int main(int argc, char **argv) {
   bool usediis=true, useadiis=true, diiscomb=false;
   uDIIS diis(S,Sinvh,diiscomb,usediis,diiseps,diisthr,useadiis,true,diisorder);
   double diiserr;
+
+  // -- RDMFT Integration Start --
+  bool use_rdmft = (method == "Muller" || method == "Power" || method == "GU" || method.find("RDMFT") != std::string::npos);
+  if (use_rdmft) {
+      using namespace helfem::rdmft;
+      printf("\n**** Starting RDMFT Solver for method %s ****\n\n", method.c_str());
+
+      // Reconstruct initial guess matrices
+      arma::mat Ca_init = arma::join_rows(Caocc, Cavirt);
+      arma::mat Cb_init; 
+      if (nelb > 0) {
+          Cb_init = arma::join_rows(Cbocc, Cbvirt);
+      } else if (restr && nelb == nela) {
+          Cb_init = Ca_init; // Duplicate for restricted closed shell logic in RDMFT
+      } else {
+          // Open shell with no beta, or restr with mismatch logic?
+          // If nelb=0, we leave Cb_init empty
+      }
+
+      int n_alpha_orb = Ca_init.n_cols;
+      arma::mat C_rdmft;
+      if (Cb_init.n_elem > 0)
+         C_rdmft = arma::join_rows(Ca_init, Cb_init);
+      else 
+         C_rdmft = Ca_init;
+
+      // Initialize occupations
+      arma::vec n_occ(C_rdmft.n_cols, arma::fill::zeros);
+      // Alpha
+      for(int k=0; k < nela; ++k) n_occ(k) = 1.0; 
+      // Beta (offset)
+      if (Cb_init.n_elem > 0) {
+          for(int k=0; k < nelb; ++k) n_occ(n_alpha_orb + k) = 1.0;
+      }
+      
+      XCFunctionalType xc_type = string_to_xc_type(method);
+      if (xc_type == XCFunctionalType::Power && method != "Power") xc_type = XCFunctionalType::Muller; 
+      if (method == "RDMFT") xc_type = XCFunctionalType::Muller;
+
+      double power = 0.5;
+      if (xc_type == XCFunctionalType::Power) power = 0.5; 
+      if (xc_type == XCFunctionalType::HartreeFock) power = 1.0;
+
+      printf("DEBUG main: basis addr: %p\n", &basis);
+
+      auto functional = std::make_shared<AtomicRDMFTFunctional<atomic::basis::TwoDBasis>>(basis, H0, power, n_alpha_orb, xc_type);
+      Solver solver(functional, S);
+      
+      solver.set_max_outer_iter(maxit);
+      if (diiseps < 1e-4) solver.set_orb_grad_tol(diiseps); 
+
+      solver.solve(C_rdmft, n_occ, (double)nela, (double)nelb, n_alpha_orb);
+      
+      // Extract results
+      arma::mat Ca_final = C_rdmft.cols(0, n_alpha_orb - 1);
+      chkpt.write("Ca", Ca_final);
+      if (Cb_init.n_elem > 0) {
+          arma::mat Cb_final = C_rdmft.cols(n_alpha_orb, C_rdmft.n_cols - 1);
+          chkpt.write("Cb", Cb_final);
+      } else {
+          chkpt.write("Cb", Ca_final); // Mirror if beta specific was not computed or restricted?
+      }
+      chkpt.write("n_occ", n_occ);
+      
+      printf("RDMFT calculation completed. Results saved to checkpoint.\n");
+      return 0;      
+  }
+  // -- RDMFT Integration End --
 
   // Density matrices
   arma::mat P, Pa, Pb;
