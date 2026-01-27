@@ -90,6 +90,9 @@ target_link_libraries(test_solver_orb helfem-common legendre)
 add_executable(test_solver_orb_h0 rdmft/tests/test_solver_orb_h0.cpp)
 target_link_libraries(test_solver_orb_h0 helfem-common legendre)
 
+add_executable(test_full_optimization rdmft/tests/test_full_optimization.cpp)
+target_link_libraries(test_full_optimization helfem-common legendre)
+
 
 
 # Install libraries and main executables

@@ -22,14 +22,13 @@ public:
     helfem::atomic::basis::TwoDBasis& basis;
     arma::mat Hcore;
     double accumulated_energy;
+    double power;
     int n_alpha_orb;
 
-    TestRDMFTFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb) 
-        : basis(b), Hcore(H0), accumulated_energy(0.0), n_alpha_orb(na_orb) {}
+    TestRDMFTFunctional(helfem::atomic::basis::TwoDBasis& b, const arma::mat& H0, int na_orb, double p=1.0) 
+        : basis(b), Hcore(H0), accumulated_energy(0.0), power(p), n_alpha_orb(na_orb) {}
 
     double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
-        double power = 1.0;
-        
         // Use unified helper functions which handle n_alpha_orb splitting and cross-terms
         accumulated_energy = helfem::rdmft::compute_energy<helfem::atomic::basis::TwoDBasis>(
             basis, Hcore, C, n, power, n_alpha_orb);

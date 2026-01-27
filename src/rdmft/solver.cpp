@@ -76,7 +76,7 @@ void Solver::solve(arma::mat& C, arma::vec& n, double target_Na, double target_N
             std::cout << "  Total Energy: " << E << " deltaE: " << dE << "\n";
         }
         
-        if (iter > 0 && dE < std::max(occ_tol_, orb_tol_)) {
+        if (iter > 0 && dE <  orb_f_tol_ ) {
              if (verbose_) std::cout << "RDMFT converged.\n";
              break;
         }
@@ -177,7 +177,7 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         mu_b = current_lb / step;
 
         functional_->energy(C, n, gC, gn); 
-        if (diff_n < occ_tol_) break;
+        if (diff_n < occ_f_tol_) break;
     }
     
     if (verbose_) std::cout << "  [Occ] Energy after optimize: " << E << "\n";
