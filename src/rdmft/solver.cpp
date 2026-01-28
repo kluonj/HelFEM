@@ -147,31 +147,39 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         bool step_accepted = false;
         int max_ls = 20;
 
-        while(linesearch_steps < max_ls) {
-             E_new = functional_->energy(C, n_new);
-             if (E_new < E + 1e-8) { // Relaxed slightly to avoid numerical noise
-                 step_accepted = true;
-                 break; // Accept step
-             }
-             
-             step *= 0.5;
-             n_new = n - step * gn;
-             
-             // Project again inside LS
-             if (n_alpha_orb > 0 && n.n_elem > (arma::uword)n_alpha_orb) {
-                arma::vec na = n_new.head(n_alpha_orb);
-                na = project_capped_simplex(na, target_Na, &current_la);
-                arma::vec nb = n_new.tail(n_new.n_elem - n_alpha_orb);
-                nb = project_capped_simplex(nb, target_Nb, &current_lb);
-                n_new.head(n_alpha_orb) = na;
-                n_new.tail(n_new.n_elem - n_alpha_orb) = nb;
-             } else {
-                n_new = project_capped_simplex(n_new, target_Na, &current_la);
-                current_lb = current_la;
-             }
-             
-             linesearch_steps++;
-        }
+          // Armijo-style backtracking with projection: require sufficient decrease
+          const double c_armijo = 1e-4;
+          while(linesearch_steps < max_ls) {
+                 E_new = functional_->energy(C, n_new);
+                 double slope = arma::dot(gn, n_new - n); // directional derivative after projection
+
+                 // If slope >= 0 descent not guaranteed; reduce step and retry
+                 if (slope < 0.0) {
+                    if (E_new <= E + c_armijo * slope) {
+                      step_accepted = true;
+                      break; // Accept step
+                    }
+                 }
+
+                 // Reduce step and recompute candidate
+                 step *= 0.5;
+                 n_new = n - step * gn;
+
+                 // Project again inside LS
+                 if (n_alpha_orb > 0 && n.n_elem > (arma::uword)n_alpha_orb) {
+                     arma::vec na = n_new.head(n_alpha_orb);
+                     na = project_capped_simplex(na, target_Na, &current_la);
+                     arma::vec nb = n_new.tail(n_new.n_elem - n_alpha_orb);
+                     nb = project_capped_simplex(nb, target_Nb, &current_lb);
+                     n_new.head(n_alpha_orb) = na;
+                     n_new.tail(n_new.n_elem - n_alpha_orb) = nb;
+                 } else {
+                     n_new = project_capped_simplex(n_new, target_Na, &current_la);
+                     current_lb = current_la;
+                 }
+
+                 linesearch_steps++;
+          }
         
         if (!step_accepted) {
             if (verbose_) std::cout << "  [Occ] Line search failed to find lower energy. Stopping.\n";
