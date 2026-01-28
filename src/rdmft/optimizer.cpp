@@ -213,8 +213,9 @@ OrbitalOptimizer::EvalResult OrbitalOptimizer::evaluate_point(
     res.X = retract(X_trial, n_alpha_orb);
     res.C = from_orthogonal_basis(res.X, S_inv_sqrt);
 
-    arma::mat gC; arma::vec gn;
-    res.E = functional->energy(res.C, n, gC, gn);
+    arma::mat gC;
+    res.E = functional->energy(res.C, n);
+    functional->orbital_gradient(res.C, n, gC);
     arma::mat gX = S_inv_sqrt * gC;
     res.grad = calc_riem_grad(res.X, gX, n_alpha_orb);
     return res;
@@ -340,11 +341,12 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
 
     arma::mat X = to_orthogonal_basis(C, S_sqrt);
 
-    arma::mat gC; arma::vec gn;
-    double E = functional->energy(C, n, gC, gn);
+    arma::mat gC;
+    double E = functional->energy(C, n);
+    functional->orbital_gradient(C, n, gC);
     arma::mat gX = S_inv_sqrt * gC;
     arma::mat grad = calc_riem_grad(X, gX, n_alpha_orb);
-
+    
     arma::mat z = apply_preconditioner(X, grad);
     arma::mat dir = -z;
     clear_history();

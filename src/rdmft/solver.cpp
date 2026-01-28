@@ -62,8 +62,7 @@ void Solver::solve(arma::mat& C, arma::vec& n, double target_Na, double target_N
         }
 
         // Check convergence 
-        arma::mat gC; arma::vec gn;
-        double E = functional_->energy(C, n, gC, gn);
+        double E = functional_->energy(C, n);
         
         // Check nan
         if (std::isnan(E)) {
@@ -88,8 +87,9 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
     // Projected Gradient Descent with simple line search
     
     // Initial energy
-    arma::mat gC; arma::vec gn;
-    double E = functional_->energy(C, n, gC, gn);
+    double E = functional_->energy(C, n);
+    arma::vec gn;
+    functional_->occupation_gradient(C, n, gn);
     
     if (verbose_) {
         std::cout << "\n  --- Occupation Optimization ---\n";
@@ -148,8 +148,7 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         int max_ls = 20;
 
         while(linesearch_steps < max_ls) {
-             arma::mat gC_dummy; arma::vec gn_dummy;
-             E_new = functional_->energy(C, n_new, gC_dummy, gn_dummy);
+             E_new = functional_->energy(C, n_new);
              if (E_new < E + 1e-8) { // Relaxed slightly to avoid numerical noise
                  step_accepted = true;
                  break; // Accept step
@@ -187,7 +186,7 @@ void Solver::optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, 
         mu_a = current_la / step;
         mu_b = current_lb / step;
 
-        functional_->energy(C, n, gC, gn); 
+        functional_->occupation_gradient(C, n, gn); 
         if (diff_n < occ_f_tol_) break;
     }
     

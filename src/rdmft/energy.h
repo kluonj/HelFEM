@@ -16,8 +16,15 @@ namespace rdmft {
 template <typename BasisType>
 struct EnergyFunctional {
   // Evaluate energy: given AO coeffs `C` (columns = orbitals) and occupation
-  // vector `n`, return energy and fill gradients `gC` and `gn`.
-  virtual double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) = 0;
+  // vector `n`, return energy.
+  virtual double energy(const arma::mat& C, const arma::vec& n) = 0;
+
+  // Evaluate orbital gradient w.r.t C
+  virtual void orbital_gradient(const arma::mat& C, const arma::vec& n, arma::mat& gC) = 0;
+
+  // Evaluate occupation gradient w.r.t n
+  virtual void occupation_gradient(const arma::mat& C, const arma::vec& n, arma::vec& gn) = 0;
+
   virtual ~EnergyFunctional() {}
 };
 

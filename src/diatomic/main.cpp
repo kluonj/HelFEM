@@ -42,13 +42,19 @@ public:
     DiatomicRDMFTFunctional(BasisType& basis, const arma::mat& Hcore, double power, int n_alpha_orb, helfem::rdmft::XCFunctionalType type)
         : basis_(basis), Hcore_(Hcore), power_(power), n_alpha_orb_(n_alpha_orb), type_(type) {}
 
-    double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) override {
-        // Compute Gradients
-        helfem::rdmft::compute_orbital_gradient(basis_, Hcore_, C, n, power_, gC, n_alpha_orb_, type_);
-        helfem::rdmft::compute_occupation_gradient(basis_, Hcore_, C, n, power_, gn, n_alpha_orb_, type_);
-        
+    double energy(const arma::mat& C, const arma::vec& n) override {
         // Compute Energy
         return helfem::rdmft::compute_energy(basis_, Hcore_, C, n, power_, n_alpha_orb_, type_);
+    }
+
+    void orbital_gradient(const arma::mat& C, const arma::vec& n, arma::mat& gC) override {
+        // Compute Orbital Gradient
+        helfem::rdmft::compute_orbital_gradient(basis_, Hcore_, C, n, power_, gC, n_alpha_orb_, type_);
+    }
+
+    void occupation_gradient(const arma::mat& C, const arma::vec& n, arma::vec& gn) override {
+        // Compute Occupation Gradient
+        helfem::rdmft::compute_occupation_gradient(basis_, Hcore_, C, n, power_, gn, n_alpha_orb_, type_);
     }
 
 private:

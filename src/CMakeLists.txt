@@ -88,6 +88,9 @@ target_link_libraries(diatomic_dgrid helfem-common legendre)
 add_executable(test_solver_occ rdmft/tests/test_solver_occ.cpp)
 target_link_libraries(test_solver_occ helfem-common legendre)
 
+add_executable(test_solver_occ_ne rdmft/tests/test_solver_occ_ne.cpp)
+target_link_libraries(test_solver_occ_ne helfem-common legendre)
+
 add_executable(test_solver_orb rdmft/tests/test_solver_orb.cpp)
 target_link_libraries(test_solver_orb helfem-common legendre)
 
