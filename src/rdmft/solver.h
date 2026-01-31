@@ -42,15 +42,8 @@ public:
     // Solve for ground state.
     // C: initial guess (and output) orbitals
     // n: initial guess (and output) occupations
-    // target_N: total number of electrons (for single channel / restricted)
+    // target_N: total number of electrons
     void solve(arma::mat& C, arma::vec& n, double target_N);
-
-    // Solve for ground state with separate alpha/beta constraints (Unrestricted/General)
-    // C: concatenated orbitals [Ca, Cb]
-    // n: concatenated occupations [na, nb]
-    // target_Na, target_Nb: electron counts for each channel
-    // n_alpha_orb: number of orbitals in the alpha block (first n_alpha_orb columns of C)
-    void solve(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb);
 
 private:
     std::shared_ptr<EnergyFunctional<void>> functional_;
@@ -73,9 +66,8 @@ private:
     bool do_optimize_orbitals_ = true;
 
     // Internal optimization routines
-    // If n_alpha_orb > 0, treats as two-channel. If 0 or -1, treats as one channel.
-    void optimize_occupations(arma::mat& C, arma::vec& n, double target_Na, double target_Nb, int n_alpha_orb, double& mu_a, double& mu_b, double rho);
-    void optimize_orbitals(arma::mat& C, arma::vec& n, int n_alpha_orb);
+    void optimize_occupations(arma::mat& C, arma::vec& n, double target_N, double& mu, double rho);
+    void optimize_orbitals(arma::mat& C, arma::vec& n);
 
     // Helper: Orthogonalize C: X = S^{1/2} C
     arma::mat to_orthogonal_basis(const arma::mat& C);

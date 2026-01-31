@@ -53,7 +53,7 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
         solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
         solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::Armijo);
 
-        solver.solve(C_tot, n_tot, target_Na, target_Nb, Na_orb);
+        solver.solve(C_tot, n_tot, target_Na + target_Nb);
 
         // Print energy with more digits (temporary formatting)
         std::cout << std::setprecision(12) << std::scientific;

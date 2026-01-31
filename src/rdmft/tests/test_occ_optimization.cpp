@@ -32,6 +32,8 @@ struct QuadraticOccFunctional : public EnergyFunctional<void> {
     }
 };
 
+
+
 int main() {
     int m = 6;
     arma::mat S = arma::eye(m, m);

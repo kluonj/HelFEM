@@ -53,8 +53,7 @@ public:
                   const arma::mat& S_sqrt,
                   const arma::mat& S_inv_sqrt,
                   arma::mat& C,
-                  const arma::vec& n,
-                  int n_alpha_orb);
+                  const arma::vec& n);
 
 private:
     struct EvalResult;
@@ -79,9 +78,9 @@ private:
     arma::mat to_orthogonal_basis(const arma::mat& C, const arma::mat& S_sqrt) const;
     arma::mat from_orthogonal_basis(const arma::mat& X, const arma::mat& S_inv_sqrt) const;
 
-    arma::mat calc_riem_grad(const arma::mat& X, const arma::mat& gX, int n_alpha_orb) const;
-    arma::mat project_to_tangent(const arma::mat& X, const arma::mat& V, int n_alpha_orb) const;
-    arma::mat retract(const arma::mat& X_trial, int n_alpha_orb) const;
+    arma::mat calc_riem_grad(const arma::mat& X, const arma::mat& gX) const;
+    arma::mat project_to_tangent(const arma::mat& X, const arma::mat& V) const;
+    arma::mat retract(const arma::mat& X_trial) const;
     arma::mat apply_preconditioner(const arma::mat& X, const arma::mat& grad) const;
 
     EvalResult evaluate_point(const std::shared_ptr<EnergyFunctional<void>>& functional,
@@ -89,15 +88,13 @@ private:
                               const arma::mat& dir,
                               double alpha,
                               const arma::vec& n,
-                              const arma::mat& S_inv_sqrt,
-                              int n_alpha_orb) const;
+                              const arma::mat& S_inv_sqrt) const;
 
     double zoom_strong_wolfe(const std::shared_ptr<EnergyFunctional<void>>& functional,
                              const arma::mat& X,
                              const arma::mat& dir,
                              const arma::vec& n,
                              const arma::mat& S_inv_sqrt,
-                             int n_alpha_orb,
                              double E0,
                              double dphi0,
                              double a_lo,
@@ -114,7 +111,6 @@ private:
                              const arma::mat& dir,
                              const arma::vec& n,
                              const arma::mat& S_inv_sqrt,
-                             int n_alpha_orb,
                              double E0,
                              double dphi0,
                              double a_lo,
@@ -131,7 +127,6 @@ private:
                               const arma::mat& dir,
                               const arma::vec& n,
                               const arma::mat& S_inv_sqrt,
-                              int n_alpha_orb,
                               double E0,
                               double dphi0,
                               double initial_alpha,
@@ -145,7 +140,6 @@ private:
                                   const arma::mat& dir,
                                   const arma::vec& n,
                                   const arma::mat& S_inv_sqrt,
-                                  int n_alpha_orb,
                                   double E0,
                                   double dphi0,
                                   double initial_alpha,
@@ -159,7 +153,6 @@ private:
                                     const arma::mat& dir,
                                     const arma::vec& n,
                                     const arma::mat& S_inv_sqrt,
-                                    int n_alpha_orb,
                                     double E0,
                                     double dphi0,
                                     double initial_alpha,
@@ -173,7 +166,6 @@ private:
                                     const arma::mat& dir,
                                     const arma::vec& n,
                                     const arma::mat& S_inv_sqrt,
-                                    int n_alpha_orb,
                                     double E0,
                                     double dphi0,
                                     double initial_alpha,
@@ -187,7 +179,6 @@ private:
                                    const arma::mat& dir,
                                    const arma::vec& n,
                                    const arma::mat& S_inv_sqrt,
-                                   int n_alpha_orb,
                                    double E0,
                                    double dphi0,
                                    double initial_alpha,

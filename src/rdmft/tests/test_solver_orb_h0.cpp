@@ -26,13 +26,13 @@ void optimize_orb_only_h0(helfem::atomic::basis::TwoDBasis& basis, const arma::m
     arma::mat Ca = C_guess;
     arma::mat Cb = C_guess; // Initial guess same for alpha/beta
 
-    auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
+    // Use Restricted Spatial Mode: pass n_alpha_orb=0 and only the spatial
+    // orbitals `Ca` (the functional will treat occupations as 2*Norb)
+    auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, 0);
     Solver solver(func, S);
 
-    // Build concatenated C and occupations
-    arma::mat C_tot(Ca.n_rows, Na_orb + Nb_orb);
-    C_tot.cols(0, Na_orb - 1) = Ca;
-    C_tot.cols(Na_orb, Na_orb + Nb_orb - 1) = Cb;
+    // Use only spatial orbitals (Restricted)
+    arma::mat C_tot = Ca;
 
     // Fixed occupations: put all electrons into lowest orbitals (integer occupations)
     arma::vec na(Na_orb, arma::fill::zeros);
@@ -59,7 +59,7 @@ void optimize_orb_only_h0(helfem::atomic::basis::TwoDBasis& basis, const arma::m
     solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::None);
 
     // Use dual-channel solve entrypoint
-    solver.solve(C_tot, n_tot, double(Na), double(Nb), Na_orb);
+    solver.solve(C_tot, n_tot, double(Na) + double(Nb));
 
     std::cout << "Orbital-Only Final Energy: " << func->accumulated_energy << "\n";
 }

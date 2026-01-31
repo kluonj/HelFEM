@@ -44,7 +44,7 @@ void optimize_occ_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     solver.set_optimize_orbitals(false);   // FIXED ORBITALS
 
     // Use default occupation optimizer (cosine param implementation)
-    solver.solve(C_tot, n_tot, double(Na), double(Nb), Na_orb);
+    solver.solve(C_tot, n_tot, double(Na) + double(Nb));
 
     std::cout << "Occupation-Only Final Energy: " << func->accumulated_energy << "\n";
 }

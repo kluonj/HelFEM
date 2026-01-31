@@ -17,16 +17,25 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     int Na_orb = Ca.n_cols;
     int Nb_orb = Cb.n_cols;
 
-    auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, Na_orb);
+    // Use Restricted Spatial Mode: Pass n_alpha_orb=0 (so Functional detects 2*Norb occupations)
+    auto func = std::make_shared<TestRDMFTFunctional>(basis, H0, 0);
     Solver solver(func, S);
 
-    // Build concatenated C and occupations
-    arma::mat C_tot(Ca.n_rows, Na_orb + Nb_orb);
-    C_tot.cols(0, Na_orb - 1) = Ca;
+    // Use only spatial orbitals (Restricted)
+    arma::mat C_tot = Ca; 
     
-    // Perturb C slightly to ensure we aren't stuck exactly in a local minimum if DFT~HF?
-    // Actually, starting from optimal DFT orbitals is good.
-    C_tot.cols(Na_orb, Na_orb + Nb_orb - 1) = Cb;
+    // Perturb C slightly? Not needed if starting from SCF.
+    // C_tot = Ca + 0.01 * arma::randu(size(Ca)); -> Might break orthonormality. 
+    // Solver will not re-orthogonalize automatically? 
+    // Actually Solver assumes input C is "guess". 
+    // But optimizer assumes "orthogonal basis" X = S^1/2 C.
+    // The optimizer computes X from C. If we perturb C, X will be perturbed.
+    // But optimizer projects grad to tangent. It doesn't project X to manifold until line search steps?
+    // Wait, evaluate_point uses retract().
+    // The initial point X_base comes from C.
+    // If we want to guarantee X is on manifold, we should orthogonalize C first.
+    // C = to_orthogonal(C)...
+    // But Ca from SCF is already orthogonal.
 
     // Fixed occupations: put all electrons into lowest orbitals (integer occupations)
     arma::vec na(Na_orb, arma::fill::zeros);
@@ -47,15 +56,15 @@ void optimize_orb_only(helfem::atomic::basis::TwoDBasis& basis, const arma::mat&
     solver.set_max_orb_iter(50);
     solver.set_optimize_occupations(false); // FIXED OCCUPATIONS
     solver.set_optimize_orbitals(true);    // OPTIMIZE ORBITALS
-    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
-    // solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
+    // solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::LBFGS);
+    solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
     solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
     // solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::Armijo);
     // solver.set_orbital_lbfgs_history(8);
     solver.set_orbital_preconditioner(helfem::rdmft::OrbitalOptimizer::Preconditioner::None);
 
     // Use dual-channel solve entrypoint
-    solver.solve(C_tot, n_tot, double(Na), double(Nb), Na_orb);
+    solver.solve(C_tot, n_tot, double(Na) + double(Nb));
 
     std::cout << "Orbital-Only Final Energy: " << func->accumulated_energy << "\n";
 }

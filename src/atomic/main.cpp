@@ -813,7 +813,7 @@ int main(int argc, char **argv) {
       solver.set_max_outer_iter(maxit);
       if (diiseps < 1e-4) solver.set_orb_grad_tol(diiseps); 
 
-      solver.solve(C_rdmft, n_occ, (double)nela, (double)nelb, n_alpha_orb);
+      solver.solve(C_rdmft, n_occ, (double)nela + (double)nelb);
       
       // Extract results
       arma::mat Ca_final = C_rdmft.cols(0, n_alpha_orb - 1);

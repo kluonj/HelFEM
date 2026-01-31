@@ -60,67 +60,39 @@ arma::mat OrbitalOptimizer::from_orthogonal_basis(const arma::mat& X, const arma
     return S_inv_sqrt * X;
 }
 
-arma::mat OrbitalOptimizer::project_to_tangent(const arma::mat& X, const arma::mat& V, int n_alpha_orb) const {
-    arma::mat T(V.n_rows, V.n_cols);
-    if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
-        arma::mat Xa = X.cols(0, n_alpha_orb - 1);
-        arma::mat Va = V.cols(0, n_alpha_orb - 1);
-        arma::mat Ta = Va - Xa * symm(Xa.t() * Va);
-        T.cols(0, n_alpha_orb - 1) = Ta;
-
-        arma::mat Xb = X.cols(n_alpha_orb, X.n_cols - 1);
-        arma::mat Vb = V.cols(n_alpha_orb, V.n_cols - 1);
-        arma::mat Tb = Vb - Xb * symm(Xb.t() * Vb);
-        T.cols(n_alpha_orb, X.n_cols - 1) = Tb;
-    } else {
-        T = V - X * symm(X.t() * V);
-    }
-    return T;
+arma::mat OrbitalOptimizer::project_to_tangent(const arma::mat& X, const arma::mat& V) const {
+    return V - X * symm(X.t() * V);
 }
 
-arma::mat OrbitalOptimizer::calc_riem_grad(const arma::mat& X, const arma::mat& gX, int n_alpha_orb) const {
-    return project_to_tangent(X, gX, n_alpha_orb);
+arma::mat OrbitalOptimizer::calc_riem_grad(const arma::mat& X, const arma::mat& gX) const {
+    return project_to_tangent(X, gX);
 }
 
-arma::mat OrbitalOptimizer::retract(const arma::mat& X_trial, int n_alpha_orb) const {
+arma::mat OrbitalOptimizer::retract(const arma::mat& X_trial) const {
     arma::mat X_out = X_trial;
 
-    auto retract_block = [&](arma::mat& X_block) {
-        if (retraction_ == Retraction::QR) {
+    if (retraction_ == Retraction::QR) {
              arma::mat Q, R;
-             if(arma::qr(Q, R, X_block)) {
+             if(arma::qr(Q, R, X_out)) {
                  arma::uword min_dim = std::min(R.n_rows, R.n_cols);
                  for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
-                 X_block = Q.cols(0, X_block.n_cols - 1);
+                 X_out = Q.cols(0, X_out.n_cols - 1);
              }
-        } else {
-            // Polar
-            arma::mat U, V;
-            arma::vec s;
-            if (arma::svd_econ(U, s, V, X_block)) {
-                X_block = U * V.t();
-            } else {
-                 // Fallback to QR
-                 arma::mat Q, R;
-                 if(arma::qr(Q, R, X_block)) {
-                     arma::uword min_dim = std::min(R.n_rows, R.n_cols);
-                     for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
-                     X_block = Q.cols(0, X_block.n_cols - 1);
-                 }
-            }
-        }
-    };
-
-    if (n_alpha_orb > 0 && X_trial.n_cols > (arma::uword)n_alpha_orb) {
-        arma::mat Xa = X_trial.cols(0, n_alpha_orb - 1);
-        retract_block(Xa);
-        X_out.cols(0, n_alpha_orb - 1) = Xa;
-
-        arma::mat Xb = X_trial.cols(n_alpha_orb, X_trial.n_cols - 1);
-        retract_block(Xb);
-        X_out.cols(n_alpha_orb, X_trial.n_cols - 1) = Xb;
     } else {
-        retract_block(X_out);
+        // Polar
+        arma::mat U, V;
+        arma::vec s;
+        if (arma::svd_econ(U, s, V, X_out)) {
+            X_out = U * V.t();
+        } else {
+             // Fallback to QR
+             arma::mat Q, R;
+             if(arma::qr(Q, R, X_out)) {
+                 arma::uword min_dim = std::min(R.n_rows, R.n_cols);
+                 for (arma::uword k = 0; k < min_dim; ++k) if (R(k, k) < 0) Q.col(k) *= -1.0;
+                 X_out = Q.cols(0, X_out.n_cols - 1);
+             }
+        }
     }
 
     return X_out;
@@ -206,18 +178,17 @@ OrbitalOptimizer::EvalResult OrbitalOptimizer::evaluate_point(
     const arma::mat& dir,
     double alpha,
     const arma::vec& n,
-    const arma::mat& S_inv_sqrt,
-    int n_alpha_orb) const {
+    const arma::mat& S_inv_sqrt) const {
     EvalResult res;
     arma::mat X_trial = X_base + alpha * dir;
-    res.X = retract(X_trial, n_alpha_orb);
+    res.X = retract(X_trial);
     res.C = from_orthogonal_basis(res.X, S_inv_sqrt);
 
     arma::mat gC;
     res.E = functional->energy(res.C, n);
     functional->orbital_gradient(res.C, n, gC);
     arma::mat gX = S_inv_sqrt * gC;
-    res.grad = calc_riem_grad(res.X, gX, n_alpha_orb);
+    res.grad = calc_riem_grad(res.X, gX);
     return res;
 }
 
@@ -226,7 +197,6 @@ double OrbitalOptimizer::zoom_strong_wolfe(const std::shared_ptr<EnergyFunctiona
                                            const arma::mat& dir,
                                            const arma::vec& n,
                                            const arma::mat& S_inv_sqrt,
-                                           int n_alpha_orb,
                                            double E0,
                                            double dphi0,
                                            double a_lo,
@@ -245,7 +215,7 @@ double OrbitalOptimizer::zoom_strong_wolfe(const std::shared_ptr<EnergyFunctiona
                                      a_hi, hi.E, mat_dot(hi.grad, dir),
                                      std::min(a_lo, a_hi), std::max(a_lo, a_hi));
 
-        EvalResult trial = evaluate_point(functional, X, dir, a, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult trial = evaluate_point(functional, X, dir, a, n, S_inv_sqrt);
         double dphi = mat_dot(trial.grad, dir);
 
         if ((trial.E > E0 + c1 * a * dphi0) || (trial.E >= lo.E)) {
@@ -280,7 +250,6 @@ double OrbitalOptimizer::zoom_more_thuente(const std::shared_ptr<EnergyFunctiona
                                            const arma::mat& dir,
                                            const arma::vec& n,
                                            const arma::mat& S_inv_sqrt,
-                                           int n_alpha_orb,
                                            double E0,
                                            double dphi0,
                                            double a_lo,
@@ -299,7 +268,7 @@ double OrbitalOptimizer::zoom_more_thuente(const std::shared_ptr<EnergyFunctiona
                                      a_hi, hi.E, mat_dot(hi.grad, dir),
                                      std::min(a_lo, a_hi), std::max(a_lo, a_hi));
 
-        EvalResult trial = evaluate_point(functional, X, dir, a, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult trial = evaluate_point(functional, X, dir, a, n, S_inv_sqrt);
         double dphi = mat_dot(trial.grad, dir);
 
         if ((trial.E > E0 + c1 * a * dphi0) || (trial.E >= lo.E)) {
@@ -335,8 +304,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
                                 const arma::mat& S_sqrt,
                                 const arma::mat& S_inv_sqrt,
                                 arma::mat& C,
-                                const arma::vec& n,
-                                int n_alpha_orb) {
+                                const arma::vec& n) {
     if (!functional) return;
 
     arma::mat X = to_orthogonal_basis(C, S_sqrt);
@@ -345,7 +313,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
     double E = functional->energy(C, n);
     functional->orbital_gradient(C, n, gC);
     arma::mat gX = S_inv_sqrt * gC;
-    arma::mat grad = calc_riem_grad(X, gX, n_alpha_orb);
+    arma::mat grad = calc_riem_grad(X, gX);
     
     arma::mat z = apply_preconditioner(X, grad);
     arma::mat dir = -z;
@@ -365,15 +333,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
         double grad_norm = arma::norm(grad, "fro");
         
         double fid_err = 0.0;
-        if (n_alpha_orb > 0 && X.n_cols > (arma::uword)n_alpha_orb) {
-             arma::mat Xa = X.cols(0, n_alpha_orb - 1);
-             arma::mat Xb = X.cols(n_alpha_orb, X.n_cols - 1);
-             double err_a = arma::norm(Xa.t() * Xa - arma::eye(Xa.n_cols, Xa.n_cols), "inf");
-             double err_b = arma::norm(Xb.t() * Xb - arma::eye(Xb.n_cols, Xb.n_cols), "inf");
-             fid_err = std::max(err_a, err_b);
-        } else {
-             fid_err = arma::norm(X.t() * X - arma::eye(X.n_cols, X.n_cols), "inf");
-        }
+        fid_err = arma::norm(X.t() * X - arma::eye(X.n_cols, X.n_cols), "inf");
 
         if (grad_norm < tol_) break;
 
@@ -385,11 +345,11 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
             if (iter == 1) {
                 dir = -z;
             } else {
-                arma::mat z_trans = project_to_tangent(X, z_prev, n_alpha_orb);
+                arma::mat z_trans = project_to_tangent(X, z_prev);
                 double num = mat_dot(grad, z);
                 double den = mat_dot(grad_prev, z_prev);
                 double beta = std::max(0.0, (den > 0.0 ? num / den : 0.0));
-                arma::mat dir_trans = project_to_tangent(X, dir_prev, n_alpha_orb);
+                arma::mat dir_trans = project_to_tangent(X, dir_prev);
                 dir = -z + beta * dir_trans;
                 if (mat_dot(grad, dir) >= 0.0) dir = -z;
             }
@@ -398,7 +358,7 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
                 dir = -z;
             } else {
                 dir = lbfgs_direction(grad);
-                dir = project_to_tangent(X, dir, n_alpha_orb);
+                dir = project_to_tangent(X, dir);
                 if (mat_dot(grad, dir) >= 0.0) dir = -z;
             }
         }
@@ -425,17 +385,17 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
         if (alpha_guess > 10.0) alpha_guess = 1.0;
 
         if (line_search_ == LineSearch::StrongWolfe) {
-            step = line_search_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_strong_wolfe(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         } else if (line_search_ == LineSearch::MoreThuente) {
-            step = line_search_more_thuente(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_more_thuente(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         } else if (line_search_ == LineSearch::HagerZhang) {
-            step = line_search_hager_zhang(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_hager_zhang(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         } else if (line_search_ == LineSearch::Bracketing) {
-            step = line_search_bracketing(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_bracketing(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         } else if (line_search_ == LineSearch::Backtracking || line_search_ == LineSearch::Armijo) {
-            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         } else {
-            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, n_alpha_orb, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
+            step = line_search_armijo(functional, X, dir, n, S_inv_sqrt, E, dphi0, alpha_guess, X_new, C_new, grad_new, E_new);
         }
 
         step_size_ = step; // Store for history
@@ -457,8 +417,8 @@ void OrbitalOptimizer::optimize(const std::shared_ptr<EnergyFunctional<void>>& f
         if (step == 0.0) break;
 
         if (method_ == Method::LBFGS) {
-            arma::mat step_vec = project_to_tangent(X_new, step * dir, n_alpha_orb);
-            arma::mat grad_trans = project_to_tangent(X_new, grad, n_alpha_orb);
+            arma::mat step_vec = project_to_tangent(X_new, step * dir);
+            arma::mat grad_trans = project_to_tangent(X_new, grad);
             arma::mat y = grad_new - grad_trans;
             update_history(step_vec, y);
         }
@@ -480,7 +440,6 @@ double OrbitalOptimizer::line_search_armijo(const std::shared_ptr<EnergyFunction
                                             const arma::mat& dir,
                                             const arma::vec& n,
                                             const arma::mat& S_inv_sqrt,
-                                            int n_alpha_orb,
                                             double E0,
                                             double dphi0,
                                             double initial_alpha,
@@ -493,7 +452,7 @@ double OrbitalOptimizer::line_search_armijo(const std::shared_ptr<EnergyFunction
     const double c1 = 1e-4;
 
     for (int i = 0; i < 20; ++i) {
-        EvalResult trial = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult trial = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt);
         if (trial.E <= E0 + c1 * alpha * dphi0) {
             X_out = std::move(trial.X);
             C_out = std::move(trial.C);
@@ -512,7 +471,6 @@ double OrbitalOptimizer::line_search_bracketing(const std::shared_ptr<EnergyFunc
                                                 const arma::mat& dir,
                                                 const arma::vec& n,
                                                 const arma::mat& S_inv_sqrt,
-                                                int n_alpha_orb,
                                                 double E0,
                                                 double dphi0,
                                                 double initial_alpha,
@@ -524,13 +482,13 @@ double OrbitalOptimizer::line_search_bracketing(const std::shared_ptr<EnergyFunc
     const double max_alpha = 10.0;
     double alpha = initial_alpha;
 
-    EvalResult prev = evaluate_point(functional, X, dir, 0.0, n, S_inv_sqrt, n_alpha_orb);
+    EvalResult prev = evaluate_point(functional, X, dir, 0.0, n, S_inv_sqrt);
     for (int i = 0; i < 20; ++i) {
-        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt);
         double dphi = mat_dot(cur.grad, dir);
 
         if ((cur.E > E0 + c1 * alpha * dphi0) || (i > 0 && cur.E >= prev.E)) {
-            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, 0.0, alpha, prev, cur,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -555,7 +513,6 @@ double OrbitalOptimizer::line_search_strong_wolfe(const std::shared_ptr<EnergyFu
                                                   const arma::mat& dir,
                                                   const arma::vec& n,
                                                   const arma::mat& S_inv_sqrt,
-                                                  int n_alpha_orb,
                                                   double E0,
                                                   double dphi0,
                                                   double initial_alpha,
@@ -568,16 +525,16 @@ double OrbitalOptimizer::line_search_strong_wolfe(const std::shared_ptr<EnergyFu
     const double max_alpha = 10.0;
 
     double alpha_prev = 0.0;
-    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
+    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt);
 
     double alpha = initial_alpha;
 
     for (int i = 0; i < 20; ++i) {
-        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt);
         double dphi = mat_dot(cur.grad, dir);
 
         if ((cur.E > E0 + c1 * alpha * dphi0) || (i > 0 && cur.E >= prev.E)) {
-            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha_prev, alpha, prev, cur,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -591,7 +548,7 @@ double OrbitalOptimizer::line_search_strong_wolfe(const std::shared_ptr<EnergyFu
         }
 
         if (dphi >= 0.0) {
-            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha, alpha_prev, cur, prev,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -609,7 +566,6 @@ double OrbitalOptimizer::line_search_more_thuente(const std::shared_ptr<EnergyFu
                                                   const arma::mat& dir,
                                                   const arma::vec& n,
                                                   const arma::mat& S_inv_sqrt,
-                                                  int n_alpha_orb,
                                                   double E0,
                                                   double dphi0,
                                                   double initial_alpha,
@@ -622,16 +578,16 @@ double OrbitalOptimizer::line_search_more_thuente(const std::shared_ptr<EnergyFu
     const double max_alpha = 10.0;
 
     double alpha_prev = 0.0;
-    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
+    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt);
 
     double alpha = initial_alpha;
 
     for (int i = 0; i < 25; ++i) {
-        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt);
         double dphi = mat_dot(cur.grad, dir);
 
         if ((cur.E > E0 + c1 * alpha * dphi0) || (i > 0 && cur.E >= prev.E)) {
-            return zoom_more_thuente(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_more_thuente(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha_prev, alpha, prev, cur,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -645,7 +601,7 @@ double OrbitalOptimizer::line_search_more_thuente(const std::shared_ptr<EnergyFu
         }
 
         if (dphi >= 0.0) {
-            return zoom_more_thuente(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_more_thuente(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha, alpha_prev, cur, prev,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -663,7 +619,6 @@ double OrbitalOptimizer::line_search_hager_zhang(const std::shared_ptr<EnergyFun
                                                  const arma::mat& dir,
                                                  const arma::vec& n,
                                                  const arma::mat& S_inv_sqrt,
-                                                 int n_alpha_orb,
                                                  double E0,
                                                  double dphi0,
                                                  double initial_alpha,
@@ -677,15 +632,15 @@ double OrbitalOptimizer::line_search_hager_zhang(const std::shared_ptr<EnergyFun
     const double max_alpha = 10.0;
 
     double alpha_prev = 0.0;
-    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt, n_alpha_orb);
+    EvalResult prev = evaluate_point(functional, X, dir, alpha_prev, n, S_inv_sqrt);
     double alpha = initial_alpha;
 
     for (int i = 0; i < 25; ++i) {
-        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt, n_alpha_orb);
+        EvalResult cur = evaluate_point(functional, X, dir, alpha, n, S_inv_sqrt);
         double dphi = mat_dot(cur.grad, dir);
 
         if ((cur.E > E0 + c1 * alpha * dphi0) || (i > 0 && cur.E >= prev.E)) {
-            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha_prev, alpha, prev, cur,
                                      X_out, C_out, grad_out, E_out);
         }
@@ -699,7 +654,7 @@ double OrbitalOptimizer::line_search_hager_zhang(const std::shared_ptr<EnergyFun
         }
 
         if (dphi >= 0.0) {
-            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt, n_alpha_orb,
+            return zoom_strong_wolfe(functional, X, dir, n, S_inv_sqrt,
                                      E0, dphi0, alpha, alpha_prev, cur, prev,
                                      X_out, C_out, grad_out, E_out);
         }

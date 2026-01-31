@@ -65,7 +65,7 @@ void optimize_full(helfem::atomic::basis::TwoDBasis& basis, const arma::mat& S, 
     solver.set_orbital_optimizer(helfem::rdmft::OrbitalOptimizer::Method::CG);
     solver.set_orbital_linesearch(helfem::rdmft::OrbitalOptimizer::LineSearch::MoreThuente);
 
-    solver.solve(C_tot, n_tot, target_Na, target_Nb, Na_orb);
+    solver.solve(C_tot, n_tot, target_Na + target_Nb);
 
     std::cout << std::setprecision(12) << std::scientific;
     std::cout << "Final Energy: " << func->accumulated_energy << "\n";
