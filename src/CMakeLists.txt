@@ -106,6 +106,9 @@ target_link_libraries(test_occ_optimization helfem-common legendre)
 add_executable(test_xc_features rdmft/tests/test_xc_features.cpp)
 target_link_libraries(test_xc_features helfem-common legendre)
 
+add_executable(test_occ_h2 rdmft/tests/test_occ_h2.cpp)
+target_link_libraries(test_occ_h2 helfem-common legendre)
+
 
 
 

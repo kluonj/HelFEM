@@ -45,6 +45,14 @@ public:
         helfem::rdmft::compute_occupation_gradient<helfem::atomic::basis::TwoDBasis>(
             basis, Hcore, C, n, power, gn, n_alpha_orb, xc_type);
     }
+
+    // Backwards-compatible overload: compute energy and optionally gradients (old API)
+    double energy(const arma::mat& C, const arma::vec& n, arma::mat& gC, arma::vec& gn) {
+        double E = energy(C, n);
+        orbital_gradient(C, n, gC);
+        occupation_gradient(C, n, gn);
+        return E;
+    }
 };
 
 // Compute HF energy for given orbitals and occupations

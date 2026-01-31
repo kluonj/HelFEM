@@ -33,7 +33,7 @@ arma::vec project_capped_simplex(const arma::vec& y, double target_sum, double* 
   double hi = y.max();
   if (sum_clamped(lo) < target_sum) lo -= 10.0;
   if (sum_clamped(hi) > target_sum) hi += 10.0;
-  for (int it = 0; it < 80; ++it) {
+  for (int it = 0; it < 20; ++it) {
     double mid = 0.5 * (lo + hi);
     double s = sum_clamped(mid);
     if (s > target_sum) lo = mid; else hi = mid;
